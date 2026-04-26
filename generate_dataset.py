@@ -52,6 +52,7 @@ from fraud_injector import (
     inject_multi_signal_fraud,
 )
 from graph_generator import build_interaction_graph
+from report_generator import generate_all_reports
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -220,6 +221,21 @@ def generate_multi_signal_batch(n):
     return profiles
 
 
+def generate_and_save_reports(all_profiles, output_dir):
+    print("\nGenerating community reports (Model 4 data)...")
+    all_reports = generate_all_reports(all_profiles)
+    reports_df  = pd.DataFrame(all_reports)
+ 
+    reports_path = os.path.join(output_dir, "reports.csv")
+    reports_df.to_csv(reports_path, index=False)
+ 
+    print(f"  Reports generated: {len(reports_df):,}")
+    print(f"  Fraud reports:     {reports_df['reported_is_fraud'].sum():,}")
+    print(f"  Noise reports:     {(~reports_df['reported_is_fraud']).sum():,}")
+    print(f"Saved: {reports_path}")
+    return reports_df
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Temporal split
 # ─────────────────────────────────────────────────────────────────────────────
@@ -386,6 +402,9 @@ def main(seed=42, output_dir="./output", skip_graph=False):
         print(f"Saved: {stats_path}")
     else:
         print("Skipping graph generation (--skip_graph flag set).")
+
+    
+    generate_and_save_reports(all_profiles, output_dir)
 
     # ── Step 7: Dataset report ────────────────────────────────────────────
     write_dataset_report(df, output_dir)
