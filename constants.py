@@ -99,19 +99,254 @@ LEGITIMATE_EMAIL_DOMAINS = [
     "gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "rediffmail.com",
 ]
 
-# ── Geography ─────────────────────────────────────────────────────────────────
 
-INDIAN_CITIES = {
-    "Tier 1": ["Mumbai", "Delhi", "Bangalore", "Chennai", "Kolkata", "Hyderabad", "Pune", "Ahmedabad"],
-    "Tier 2": ["Jaipur", "Lucknow", "Kanpur", "Nagpur", "Indore", "Bhopal", "Visakhapatnam",
-               "Patna", "Vadodara", "Ghaziabad", "Ludhiana", "Agra", "Nashik", "Faridabad",
-               "Meerut", "Rajkot", "Varanasi", "Srinagar", "Aurangabad", "Dhanbad"],
+# ── Canonical city → state mapping ──────────────────────────────
+
+CITY_STATE_MAP = {
+
+    # ───────────────── Maharashtra ─────────────────
+    "Mumbai": "Maharashtra",
+    "Pune": "Maharashtra",
+    "Nagpur": "Maharashtra",
+    "Nashik": "Maharashtra",
+    "Aurangabad": "Maharashtra",
+    "Thane": "Maharashtra",
+    "Kolhapur": "Maharashtra",
+    "Solapur": "Maharashtra",
+    "Amravati": "Maharashtra",
+    "Jalgaon": "Maharashtra",
+
+    # ───────────────── Delhi ─────────────────
+    "Delhi": "Delhi",
+    "New Delhi": "Delhi",
+
+    # ───────────────── Karnataka ─────────────────
+    "Bangalore": "Karnataka",
+    "Mysore": "Karnataka",
+    "Mangalore": "Karnataka",
+    "Hubli": "Karnataka",
+    "Belgaum": "Karnataka",
+
+    # ───────────────── Tamil Nadu ─────────────────
+    "Chennai": "Tamil Nadu",
+    "Coimbatore": "Tamil Nadu",
+    "Madurai": "Tamil Nadu",
+    "Salem": "Tamil Nadu",
+    "Tiruchirappalli": "Tamil Nadu",
+    "Vellore": "Tamil Nadu",
+    "Erode": "Tamil Nadu",
+
+    # ───────────────── Telangana ─────────────────
+    "Hyderabad": "Telangana",
+    "Warangal": "Telangana",
+    "Nizamabad": "Telangana",
+    "Karimnagar": "Telangana",
+
+    # ───────────────── Andhra Pradesh ─────────────────
+    "Visakhapatnam": "Andhra Pradesh",
+    "Vijayawada": "Andhra Pradesh",
+    "Guntur": "Andhra Pradesh",
+    "Nellore": "Andhra Pradesh",
+    "Kurnool": "Andhra Pradesh",
+    "Rajahmundry": "Andhra Pradesh",
+
+    # ───────────────── Gujarat ─────────────────
+    "Ahmedabad": "Gujarat",
+    "Surat": "Gujarat",
+    "Vadodara": "Gujarat",
+    "Rajkot": "Gujarat",
+    "Bhavnagar": "Gujarat",
+    "Jamnagar": "Gujarat",
+
+    # ───────────────── Rajasthan ─────────────────
+    "Jaipur": "Rajasthan",
+    "Jodhpur": "Rajasthan",
+    "Udaipur": "Rajasthan",
+    "Kota": "Rajasthan",
+    "Ajmer": "Rajasthan",
+    "Bikaner": "Rajasthan",
+
+    # ───────────────── Uttar Pradesh ─────────────────
+    "Lucknow": "Uttar Pradesh",
+    "Kanpur": "Uttar Pradesh",
+    "Noida": "Uttar Pradesh",
+    "Ghaziabad": "Uttar Pradesh",
+    "Agra": "Uttar Pradesh",
+    "Meerut": "Uttar Pradesh",
+    "Varanasi": "Uttar Pradesh",
+    "Prayagraj": "Uttar Pradesh",
+    "Aligarh": "Uttar Pradesh",
+    "Bareilly": "Uttar Pradesh",
+    "Moradabad": "Uttar Pradesh",
+    "Gorakhpur": "Uttar Pradesh",
+
+    # ───────────────── Madhya Pradesh ─────────────────
+    "Indore": "Madhya Pradesh",
+    "Bhopal": "Madhya Pradesh",
+    "Gwalior": "Madhya Pradesh",
+    "Jabalpur": "Madhya Pradesh",
+    "Ujjain": "Madhya Pradesh",
+
+    # ───────────────── West Bengal ─────────────────
+    "Kolkata": "West Bengal",
+    "Howrah": "West Bengal",
+    "Durgapur": "West Bengal",
+    "Siliguri": "West Bengal",
+    "Asansol": "West Bengal",
+
+    # ───────────────── Bihar ─────────────────
+    "Patna": "Bihar",
+    "Gaya": "Bihar",
+    "Muzaffarpur": "Bihar",
+    "Bhagalpur": "Bihar",
+
+    # ───────────────── Punjab ─────────────────
+    "Ludhiana": "Punjab",
+    "Amritsar": "Punjab",
+    "Jalandhar": "Punjab",
+    "Patiala": "Punjab",
+    "Mohali": "Punjab",
+
+    # ───────────────── Haryana ─────────────────
+    "Faridabad": "Haryana",
+    "Gurgaon": "Haryana",
+    "Panipat": "Haryana",
+    "Ambala": "Haryana",
+    "Hisar": "Haryana",
+
+    # ───────────────── Kerala ─────────────────
+    "Kochi": "Kerala",
+    "Thiruvananthapuram": "Kerala",
+    "Kozhikode": "Kerala",
+    "Thrissur": "Kerala",
+    "Kannur": "Kerala",
+
+    # ───────────────── Odisha ─────────────────
+    "Bhubaneswar": "Odisha",
+    "Cuttack": "Odisha",
+    "Rourkela": "Odisha",
+    "Sambalpur": "Odisha",
+
+    # ───────────────── Assam ─────────────────
+    "Guwahati": "Assam",
+    "Dibrugarh": "Assam",
+    "Silchar": "Assam",
+
+    # ───────────────── Jharkhand ─────────────────
+    "Ranchi": "Jharkhand",
+    "Jamshedpur": "Jharkhand",
+    "Dhanbad": "Jharkhand",
+
+    # ───────────────── Chhattisgarh ─────────────────
+    "Raipur": "Chhattisgarh",
+    "Bilaspur": "Chhattisgarh",
+    "Durg": "Chhattisgarh",
+
+    # ───────────────── Himachal Pradesh ─────────────────
+    "Shimla": "Himachal Pradesh",
+    "Dharamshala": "Himachal Pradesh",
+    "Solan": "Himachal Pradesh",
+
+    # ───────────────── Uttarakhand ─────────────────
+    "Dehradun": "Uttarakhand",
+    "Haridwar": "Uttarakhand",
+    "Roorkee": "Uttarakhand",
+
+    # ───────────────── Goa ─────────────────
+    "Panaji": "Goa",
+    "Margao": "Goa",
+    "Vasco da Gama": "Goa",
+
+    # ───────────────── Jammu & Kashmir ─────────────────
+    "Srinagar": "Jammu and Kashmir",
+    "Jammu": "Jammu and Kashmir",
+
+    # ───────────────── Chandigarh ─────────────────
+    "Chandigarh": "Chandigarh",
+
+    # ───────────────── Tripura ─────────────────
+    "Agartala": "Tripura",
+
+    # ───────────────── Meghalaya ─────────────────
+    "Shillong": "Meghalaya",
+
+    # ───────────────── Manipur ─────────────────
+    "Imphal": "Manipur",
+
+    # ───────────────── Nagaland ─────────────────
+    "Kohima": "Nagaland",
+
+    # ───────────────── Mizoram ─────────────────
+    "Aizawl": "Mizoram",
+
+    # ───────────────── Arunachal Pradesh ─────────────────
+    "Itanagar": "Arunachal Pradesh",
+
+    # ───────────────── Sikkim ─────────────────
+    "Gangtok": "Sikkim",
 }
-ALL_CITIES = INDIAN_CITIES["Tier 1"] + INDIAN_CITIES["Tier 2"]
-CITY_WEIGHTS = [0.04] * 8 + [0.02] * 20  # tier 1 twice as likely
-# normalise
-_cw = np.array(CITY_WEIGHTS, dtype=float)
-CITY_WEIGHTS = (_cw / _cw.sum()).tolist()
+
+# ── City tiers for realistic sampling ─────────────────────────────
+
+TIER_1_CITIES = {
+    "Mumbai",
+    "Delhi",
+    "Bangalore",
+    "Chennai",
+    "Kolkata",
+    "Hyderabad",
+    "Pune",
+    "Ahmedabad",
+}
+
+TIER_2_CITIES = {
+    "Jaipur",
+    "Lucknow",
+    "Kanpur",
+    "Nagpur",
+    "Indore",
+    "Bhopal",
+    "Visakhapatnam",
+    "Patna",
+    "Vadodara",
+    "Ghaziabad",
+    "Ludhiana",
+    "Agra",
+    "Nashik",
+    "Faridabad",
+    "Meerut",
+    "Rajkot",
+    "Varanasi",
+    "Srinagar",
+    "Aurangabad",
+    "Dhanbad",
+    "Noida",
+    "Surat",
+    "Coimbatore",
+    "Kochi",
+    "Chandigarh",
+    "Mysore",
+}
+
+ALL_CITIES = list(CITY_STATE_MAP.keys())
+
+# Dynamic weighting:
+# Tier 1 cities appear more frequently
+CITY_WEIGHTS = []
+
+for city in ALL_CITIES:
+    if city in TIER_1_CITIES:
+        CITY_WEIGHTS.append(4.0)
+    elif city in TIER_2_CITIES:
+        CITY_WEIGHTS.append(2.0)
+    else:
+        CITY_WEIGHTS.append(1.0)
+
+CITY_WEIGHTS = (
+    np.array(CITY_WEIGHTS, dtype=float) /
+    np.sum(CITY_WEIGHTS)
+).tolist()
+
 
 INDIAN_STATES = ["Maharashtra", "Karnataka", "Tamil Nadu", "Delhi", "West Bengal",
                  "Telangana", "Gujarat", "Rajasthan", "Uttar Pradesh", "Punjab",

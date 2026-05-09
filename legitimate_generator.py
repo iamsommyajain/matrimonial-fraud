@@ -27,13 +27,34 @@ from constants import (
     MOTHER_TONGUES, TONGUE_WEIGHTS, GENDERS, GENDER_WEIGHTS,
     EDUCATION_LEVELS, EDUCATION_WEIGHTS, EDUCATION_FIELDS, COLLEGES,
     PROFESSIONS_BY_EDUCATION, COMPANIES_LEGITIMATE, INCOME_BASE_BY_PROFESSION,
-    LEGITIMATE_EMAIL_DOMAINS, ALL_CITIES, CITY_WEIGHTS, INDIAN_STATES,
+    LEGITIMATE_EMAIL_DOMAINS, ALL_CITIES, CITY_WEIGHTS, CITY_STATE_MAP,
     COUNTRIES, COUNTRY_WEIGHTS, HOBBIES_POOL,
 )
 from bio_templates import BIO_TEMPLATES, PARTNER_PREF_TEMPLATES
 
 fake = Faker('en_IN')
 rng = np.random.default_rng()   # single shared RNG — seed at call site
+
+# ── Additional demographic attributes ─────────────────────────────
+
+MARITAL_STATUS_DIST = {
+    "never_married": 0.72,
+    "divorced": 0.14,
+    "widowed": 0.08,
+    "separated": 0.06,
+}
+
+DEVICE_TYPE_DIST = {
+    "android": 0.68,
+    "ios": 0.27,
+    "web": 0.05,
+}
+
+
+def _sample_from_dist(dist):
+    keys = list(dist.keys())
+    probs = list(dist.values())
+    return rng.choice(keys, p=probs)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -276,11 +297,37 @@ def generate_legitimate_profile(created_at=None):
         created_at = datetime.now() - timedelta(days=random.randint(1, 180))
 
     # ── Step 1: Core demographics ──────────────────────────────────────────
-    gender       = _pick(GENDERS, GENDER_WEIGHTS)
-    religion     = _pick(RELIGIONS, RELIGION_WEIGHTS)
-    caste        = _pick(CASTES_BY_RELIGION[religion])
-    mother_tongue= _pick(MOTHER_TONGUES, TONGUE_WEIGHTS)
-    age          = random.randint(22, 50)
+    gender = _pick(GENDERS, GENDER_WEIGHTS)
+    religion = _pick(RELIGIONS, RELIGION_WEIGHTS)
+    caste = _pick(CASTES_BY_RELIGION[religion])
+    mother_tongue = _pick(MOTHER_TONGUES, TONGUE_WEIGHTS)
+    age = random.randint(22, 50)
+
+    # ── Marital status conditioned on age ───────────────────────────
+    if age <= 26:
+        marital_dist = {
+            "never_married": 0.94,
+            "divorced": 0.03,
+            "widowed": 0.01,
+            "separated": 0.02,
+        }
+    elif age <= 35:
+        marital_dist = {
+            "never_married": 0.78,
+            "divorced": 0.12,
+            "widowed": 0.03,
+            "separated": 0.07,
+        }
+    else:
+        marital_dist = {
+            "never_married": 0.45,
+            "divorced": 0.30,
+            "widowed": 0.15,
+            "separated": 0.10,
+        }
+
+    marital_status = _sample_from_dist(marital_dist)
+
     height_cm    = (
         random.randint(165, 188) if gender == "Male"
         else random.randint(152, 172)
@@ -292,9 +339,11 @@ def generate_legitimate_profile(created_at=None):
     else:
         name = fake.name_female()
 
-    city    = _pick(ALL_CITIES, CITY_WEIGHTS)
-    state   = _pick(INDIAN_STATES)
-    country = _pick(COUNTRIES, COUNTRY_WEIGHTS)
+    city = _pick(ALL_CITIES, CITY_WEIGHTS)
+    state = CITY_STATE_MAP[city]
+
+    # Keep geography internally coherent
+    country = "India"
 
     # ── Step 2: Education (determines downstream fields) ───────────────────
     education_level = _pick(EDUCATION_LEVELS, EDUCATION_WEIGHTS)
@@ -304,6 +353,24 @@ def generate_legitimate_profile(created_at=None):
     # ── Step 3: Profession (conditional on education) ─────────────────────
     profession      = _pick(PROFESSIONS_BY_EDUCATION[education_level])
     company         = _pick_company(profession)
+
+    # ── Device type conditioned on age/profession ───────────────────
+    if age < 30:
+        device_dist = {
+            "android": 0.62,
+            "ios": 0.33,
+            "web": 0.05,
+        }
+    elif profession.lower() in ["doctor", "surgeon", "product manager"]:
+        device_dist = {
+            "android": 0.45,
+            "ios": 0.45,
+            "web": 0.10,
+        }
+    else:
+        device_dist = DEVICE_TYPE_DIST
+
+    device_type = _sample_from_dist(device_dist)
 
     # ── Step 4: Experience and income (conditional on age + profession) ───
     years_experience = _realistic_experience(age, education_level)
@@ -360,6 +427,8 @@ def generate_legitimate_profile(created_at=None):
         "city":                 city,
         "state":                state,
         "country":              country,
+        "marital_status": marital_status,
+        "device_type": device_type,
 
         # Education
         "education_level":      education_level,
