@@ -25,11 +25,12 @@ from datetime import datetime, timedelta
 from copy import deepcopy
 
 from constants import (
-    SUSPICIOUS_EMAIL_DOMAINS, LEGITIMATE_EMAIL_DOMAINS,
     PROFESSIONS_BY_EDUCATION, INCOME_BASE_BY_PROFESSION,
     COMPANIES_LEGITIMATE,
 )
 from bio_templates import BIO_TEMPLATES
+from email_features import extract_email_risk_features
+from email_generator import generate_fraud_email
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -97,10 +98,15 @@ def _substitute_words(text, rate=0.12):
 
 
 def _make_suspicious_email(name="user"):
-    """Generate an email using a suspicious/throwaway domain."""
-    slug = re.sub(r'[^a-z0-9]', '', name.lower())[:8]
-    nums = str(random.randint(100, 9999))
-    return f"{slug}{nums}@{random.choice(SUSPICIOUS_EMAIL_DOMAINS)}"
+    """Backward-compatible fraud email helper with non-blacklist behavior."""
+    return generate_fraud_email(name=name)
+
+
+def _refresh_email_features(profile):
+    profile["email_domain"] = profile["email"].split("@")[1]
+    features = extract_email_risk_features(profile["email"], profile)
+    profile["email_risk_features"] = features
+    profile["email_consistency_score"] = features["email_consistency_score"]
 
 
 def _burst_login_timestamps(created_at_str):
@@ -187,9 +193,15 @@ def inject_functional_fraud(profile):
 
     # ── Contradiction D: suspicious email for high-status professional
     def professional_suspicious_email():
-        p["email"] = _make_suspicious_email(p.get("name", "user"))
-        p["email_domain"] = p["email"].split("@")[1]
-        signals.append("professional_suspicious_email")
+        p["email"] = generate_fraud_email(
+            name=p.get("name", "user"),
+            age=p.get("age"),
+            profession=p.get("profession"),
+            company=p.get("company_name"),
+            education=p.get("education_level"),
+        )
+        _refresh_email_features(p)
+        signals.append("email_identity_inconsistency")
 
     # ── Contradiction E: login IPs from impossible geographies
     def impossible_geo():
