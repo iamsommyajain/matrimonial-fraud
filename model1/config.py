@@ -16,6 +16,12 @@ RISK_THRESHOLDS = {
 }
 
 PAIR_FLAG_THRESHOLD = 0.55
+FUSION_STRATEGY = "probabilistic_sum"
+SATURATION_ALPHA = 3.2
+CONTRIBUTION_TEMPERATURE = 1.0
+CONFIDENCE_FLOOR = 0.35
+MINIMUM_SIGNAL_ACTIVATION = 0.015
+SCORE_CAP = 0.98
 
 EDU_RANK = {
     "10th": 1.0,
@@ -126,6 +132,12 @@ CRITICAL_FIELD_PRIORS = {
     "email": 0.18,
 }
 
+FEATURE_CRITICALITY = {
+    "critical": frozenset({"age", "education_level", "profession", "annual_income_lpa", "years_experience", "email"}),
+    "supporting": frozenset({"company_tier", "college_tier", "login_timestamps", "profile_edit_count", "bio_text"}),
+    "optional": frozenset({"hobbies", "partner_preferences", "about_family"}),
+}
+
 RULE_WEIGHTS = {
     "age_experience": 0.18,
     "age_education": 0.10,
@@ -139,6 +151,11 @@ RULE_WEIGHTS = {
     "behavioral_integrity": 0.07,
     "textual_quality": 0.04,
     "contextual_missingness": 0.16,
+    "interaction_salary_experience": 0.18,
+    "interaction_education_income_trajectory": 0.11,
+    "interaction_text_email": 0.12,
+    "interaction_income_behavior": 0.10,
+    "interaction_sparse_inconsistency": 0.14,
 }
 
 RULE_EVIDENCE_WEIGHTS = {
@@ -154,6 +171,11 @@ RULE_EVIDENCE_WEIGHTS = {
     "behavioral_integrity": 0.62,
     "textual_quality": 0.42,
     "contextual_missingness": 0.70,
+    "interaction_salary_experience": 0.88,
+    "interaction_education_income_trajectory": 0.74,
+    "interaction_text_email": 0.76,
+    "interaction_income_behavior": 0.70,
+    "interaction_sparse_inconsistency": 0.78,
 }
 
 
