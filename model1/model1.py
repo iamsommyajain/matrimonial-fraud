@@ -14,11 +14,13 @@ Usage:
     print(result["pair_scores"])             # individual scores for explainability
 """
 
+import time
+
 from feature_extractor import extract_m1_features
-from scorer import compute_functional_risk_score
+from scorer import compute_functional_risk_score_detailed
 
 
-def score_profile(profile: dict) -> dict:
+def score_profile(profile: dict, include_profiling: bool = False) -> dict:
     """
     Score a single profile for functional consistency.
 
@@ -36,19 +38,33 @@ def score_profile(profile: dict) -> dict:
             "features_used":          dict,     # extracted features (for debugging)
         }
     """
+    extract_started = time.perf_counter()
     features = extract_m1_features(profile)
+    extraction_ms = (time.perf_counter() - extract_started) * 1000
 
-    functional_risk_score, pair_scores, flags, risk_level = \
-        compute_functional_risk_score(features)
+    score_started = time.perf_counter()
+    scored = compute_functional_risk_score_detailed(features, collect_profiling=include_profiling)
+    scoring_ms = (time.perf_counter() - score_started) * 1000
 
-    return {
+    output = {
         "profile_id":            profile.get("profile_id", "unknown"),
-        "functional_risk_score": functional_risk_score,
-        "risk_level":            risk_level,
-        "pair_scores":           {k: round(v, 4) for k, v in pair_scores.items()},
-        "flags":                 flags,
+        "functional_risk_score": scored["functional_risk_score"],
+        "risk_level":            scored["risk_level"],
+        "pair_scores":           scored["pair_scores"],
+        "flags":                 scored["flags"],
         "features_used":         features,
+        "rule_results":          scored["rule_results"],
+        "top_contributors":      scored["top_contributors"],
+        "score_breakdown":       scored["score_breakdown"],
+        "uncertainty_summary":   scored["uncertainty_summary"],
     }
+    if include_profiling:
+        output["profiling"] = {
+            "extraction_ms": extraction_ms,
+            "scoring_ms": scoring_ms,
+            "rule_runtimes_ms": scored.get("profiling", {}).get("rule_runtimes_ms", {}),
+        }
+    return output
 
 
 def score_profiles_batch(profiles: list) -> list:

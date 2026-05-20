@@ -772,15 +772,6 @@ def _generate_timestamps(created_at, is_active=True):
     }
 
 
-def _mock_face_embedding():
-    """
-    Return a mock 128-dim face embedding vector sampled from a Gaussian.
-    In real M3 implementation this comes from a FaceNet/ArcFace model.
-    We use a unique per-profile embedding so fraud injection (sharing
-    embeddings across profiles) creates a detectable signal.
-    """
-    return np.random.normal(0, 1, 128).tolist()
-
 
 def _mock_exif(is_legitimate=True):
     """
@@ -927,17 +918,6 @@ def generate_legitimate_profile(created_at=None, include_debug_latents=False):
     timestamps = behavioral_profile["timestamps"]
     device_type = behavioral_profile["device_type"]
 
-    # ── Step 8: Visual signals (mocked) ───────────────────────────────────
-    n_photos = random.randint(2, 6)
-    face_embeddings = [_mock_face_embedding() for _ in range(n_photos)]
-    # Legitimate: all embeddings are from same person → should cluster tightly
-    # We model this by generating one base embedding and adding tiny noise
-    base_embedding = _mock_face_embedding()
-    face_embeddings = [
-        (np.array(base_embedding) + np.random.normal(0, 0.05, 128)).tolist()
-        for _ in range(n_photos)
-    ]
-    exif_data = [_mock_exif(is_legitimate=True) for _ in range(n_photos)]
 
     # ── Step 9: Interaction signals (seeded — graph built separately) ──────
     # These remain per-profile stats; the full graph is assembled elsewhere.
@@ -996,11 +976,6 @@ def generate_legitimate_profile(created_at=None, include_debug_latents=False):
         "photo_upload_dates":   timestamps["photo_upload_dates"],
         "login_ip_list":        timestamps["login_ip_list"],
         "profile_edit_count":   len(timestamps["edit_timestamps"]),
-
-        # Visual
-        "n_photos":             n_photos,
-        "face_embeddings":      face_embeddings,
-        "exif_data":            exif_data,
 
         # Interaction
         "messages_sent":        messages_sent,

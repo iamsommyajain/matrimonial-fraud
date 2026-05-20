@@ -141,16 +141,6 @@ def _multi_city_ips(n):
     return ips
 
 
-def _stolen_face_embedding(pool, noise_sigma=0.02):
-    """
-    Return an embedding very close to one from the pool.
-    Models legitimate face theft: same face, maybe slightly different photo.
-    Small noise keeps it non-trivially detectable (not exact duplicate).
-    """
-    base = random.choice(pool)
-    return (np.array(base) + np.random.normal(0, noise_sigma, len(base))).tolist()
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Fraud Type 1 — Functional inconsistency  (targets M1)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -312,76 +302,9 @@ STOLEN_EMBEDDING_POOL = [
 ]
 
 
-def inject_image_fraud(profile):
-    """
-    Inject visual fraud signals:
-      A. Stolen photos: embeddings near-identical to other profiles
-      B. Multiple identities: embeddings in one profile from different distributions
-      C. Deepfake flag: set authenticity_score low
-      D. Suspicious EXIF: stripped metadata, GIMP software
-    """
-    p = deepcopy(profile)
-    signals = []
-    n_photos = p.get("n_photos", 3)
-
-    fraud_subtype = random.choice(["stolen", "multiple_identity", "deepfake", "mixed"])
-
-    if fraud_subtype == "stolen":
-        # All photos come from the same stolen source
-        stolen_base = random.choice(STOLEN_EMBEDDING_POOL)
-        p["face_embeddings"] = [
-            _stolen_face_embedding([stolen_base]) for _ in range(n_photos)
-        ]
-        signals.append("stolen_images")
-
-    elif fraud_subtype == "multiple_identity":
-        # Photos in this profile come from MULTIPLE different real people.
-        # Realistic scenario: catfish assembling photos from different victims.
-        # Each "half" of photos has a different base embedding.
-        base_a = np.random.normal(0, 1, 128).tolist()
-        base_b = np.random.normal(0, 1, 128).tolist()
-        split = n_photos // 2
-        p["face_embeddings"] = (
-            [_stolen_face_embedding([base_a]) for _ in range(split)] +
-            [_stolen_face_embedding([base_b]) for _ in range(n_photos - split)]
-        )
-        signals.append("multiple_identity_in_profile")
-
-    elif fraud_subtype == "deepfake":
-        # Mark as AI-generated — in real system this comes from FaceForensics++
-        p["face_embeddings"] = [np.random.normal(0, 1, 128).tolist() for _ in range(n_photos)]
-        p["deepfake_score"] = [random.uniform(0.75, 0.99) for _ in range(n_photos)]
-        signals.append("deepfake_detected")
-
-    else:  # mixed
-        stolen_base = random.choice(STOLEN_EMBEDDING_POOL)
-        p["face_embeddings"] = [_stolen_face_embedding([stolen_base]) for _ in range(n_photos)]
-        p["deepfake_score"] = [random.uniform(0.5, 0.85) for _ in range(n_photos)]
-        signals.append("stolen_images")
-        signals.append("partial_deepfake")
-
-    # EXIF anomalies — almost always present in image fraud
-    p["exif_data"] = [
-        {
-            "device": None,
-            "software": random.choice(["GIMP 2.10", "Adobe Photoshop 2023", "Unknown", None]),
-            "gps_stripped": True,
-            "timestamp_consistent": False,
-            "source_suspicious": True,
-        }
-        for _ in range(n_photos)
-    ]
-    signals.append("suspicious_exif")
-
-    p["is_fraud"]         = True
-    p["fraud_type"]       = "image_theft"
-    p["fraud_severity"]   = "high"
-    p["injected_signals"] = signals
-    return p
-
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Fraud Type 4 — Financial scam  (targets M4 via simulated reports)
+# Fraud Type 3 — Financial scam  (targets M4 via simulated reports)
 # ─────────────────────────────────────────────────────────────────────────────
 
 REPORT_CATEGORIES = [
@@ -453,7 +376,7 @@ def inject_financial_scam_signals(profile):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Fraud Type 5 — Coordinated ring  (targets M5 via graph topology)
+# Fraud Type 4 — Coordinated ring  (targets M5 via graph topology)
 # ─────────────────────────────────────────────────────────────────────────────
 # Note: full graph construction is in graph_generator.py.
 # This function marks the profile as a ring member and sets its interaction
@@ -528,7 +451,7 @@ def inject_multi_signal_fraud(profile, shared_template_idx=None):
     # Pick 2-3 combinations
     combo = random.choice([
         ["functional", "template_bio"],
-        ["functional", "image"],
+        ["functional","image"],
         ["template_bio", "image"],
         ["functional", "template_bio", "image"],
         ["functional", "financial"],
@@ -545,9 +468,6 @@ def inject_multi_signal_fraud(profile, shared_template_idx=None):
         p = inject_template_bio_fraud(p, shared_template_idx)
         all_signals.extend(p["injected_signals"])
 
-    if "image" in combo:
-        p = inject_image_fraud(p)
-        all_signals.extend(p["injected_signals"])
 
     if "financial" in combo:
         p = inject_financial_scam_signals(p)

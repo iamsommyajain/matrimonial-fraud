@@ -46,7 +46,6 @@ from legitimate_generator import generate_legitimate_profile
 from fraud_injector import (
     inject_functional_fraud,
     inject_template_bio_fraud,
-    inject_image_fraud,
     inject_financial_scam_signals,
     inject_ring_signals,
     inject_multi_signal_fraud,
@@ -146,14 +145,6 @@ def generate_template_bio_batch(n):
         profiles.append(inject_template_bio_fraud(base))
     return profiles
 
-
-def generate_image_fraud_batch(n):
-    profiles = []
-    for _ in tqdm(range(n), desc="Injecting image fraud", ncols=80):
-        ts   = random_created_at((1, 6))
-        base = generate_legitimate_profile(created_at=ts)
-        profiles.append(inject_image_fraud(base))
-    return profiles
 
 
 def generate_financial_scam_batch(n):
@@ -269,7 +260,7 @@ def flatten_for_csv(profiles):
     """
     The profile dicts contain nested structures (lists, dicts) that can't go
     directly into a flat CSV. This function:
-      - Serialises lists as JSON strings (face_embeddings, login_timestamps…)
+      - Serialises lists as JSON strings (login_timestamps…)
       - Flattens injected_signals → pipe-separated string
       - Drops internal-only fields (_template_idx)
     """
@@ -347,7 +338,6 @@ def main(seed=42, output_dir="./output", skip_graph=False):
     all_profiles += generate_legitimate_batch(N_LEGITIMATE)
     all_profiles += generate_functional_fraud_batch(N_FUNCTIONAL)
     all_profiles += generate_template_bio_batch(N_TEMPLATE_BIO)
-    all_profiles += generate_image_fraud_batch(N_IMAGE)
     all_profiles += generate_financial_scam_batch(N_FINANCIAL)
     all_profiles += generate_ring_batch(N_RING_HUBS, N_RING_RELAYS, N_RING_SATELLITES)
     all_profiles += generate_multi_signal_batch(N_MULTI)

@@ -1,194 +1,153 @@
 """
-scorer.py
+M1 deterministic evidence fusion.
 
-Takes extracted M1 features, calls all fuzzy rules, and combines
-pair scores into a single weighted functional_risk_score ∈ [0, 1].
+Aggregation:
+    combined_risk = 1 - product(1 - weighted_rule_score_i)
 
-Weight rationale:
-    age_experience      0.25  — hardest logical constraint, highest weight
-    education_profession 0.20 — can't be a doctor without a medical degree
-    salary_experience   0.20  — most common fabrication (inflated income)
-    salary_profession   0.15  — cross-validates income vs role
-    age_education       0.10  — PhD at 20 is obvious but less common
-    profession_email    0.05  — soft signal, low weight
-    education_salary    0.05  — cross-validates income vs qualification
+where:
+    weighted_rule_score_i =
+        score_i * confidence_i * evidence_weight_i * configured_weight_i
 
-Total: 1.00
-
-Weights are defined as constants so you can tune them without
-touching the logic.
+This is bounded, monotonic, explainable, and gives natural diminishing returns
+as independent evidence accumulates.
 """
 
-from fuzzy_rules import (
-    score_age_experience,
-    score_age_education,
-    score_education_profession,
-    score_profession_email,
-    score_salary_experience,
-    score_salary_profession,
-    score_education_salary,
-)
+from __future__ import annotations
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Weights — must sum to 1.0
-# ─────────────────────────────────────────────────────────────────────────────
+import time
 
-PAIR_WEIGHTS = {
-    "age_experience":       0.25,
-    "education_profession": 0.20,
-    "salary_experience":    0.20,
-    "salary_profession":    0.15,
-    "age_education":        0.10,
-    "profession_email":     0.05,
-    "education_salary":     0.05,
-}
-
-# Flag threshold: if an individual pair score crosses this, add to flags list
-PAIR_FLAG_THRESHOLD = 0.60
-
-# Risk level thresholds for the final score
-RISK_THRESHOLDS = {
-    "low":      (0.00, 0.30),
-    "medium":   (0.30, 0.55),
-    "high":     (0.55, 0.75),
-    "critical": (0.75, 1.01),
-}
+from config import PAIR_FLAG_THRESHOLD, RISK_THRESHOLDS
+from fuzzy_rules import RULE_REGISTRY
+from m1_types import RuleResult, ScoreBreakdown, clamp01
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Pair score computation
-# ─────────────────────────────────────────────────────────────────────────────
+def compute_rule_results(features: dict) -> list[RuleResult]:
+    return [spec.fn(features) for spec in RULE_REGISTRY]
+
+
+def compute_rule_results_profiled(features: dict) -> tuple[list[RuleResult], dict[str, float]]:
+    results = []
+    runtimes = {}
+    for spec in RULE_REGISTRY:
+        started = time.perf_counter()
+        result = spec.fn(features)
+        runtimes[spec.name] = (time.perf_counter() - started) * 1000
+        results.append(result)
+    return results, runtimes
+
 
 def compute_pair_scores(features: dict) -> dict:
     """
-    Run all fuzzy rules and return a dict of pair_name → score.
-    If a required feature is missing, that pair returns 0.0 (no penalty).
+    Backward-compatible name.
 
-    Args:
-        features: output of feature_extractor.extract_m1_features()
-
-    Returns:
-        {
-          "age_experience":       float,
-          "age_education":        float,
-          "education_profession": float,
-          "profession_email":     float,
-          "salary_experience":    float,
-          "salary_profession":    float,
-          "education_salary":     float,
-        }
+    Returns raw rule severity scores by rule name, not final contributions.
     """
-    age       = features.get("age")
-    edu       = features.get("education_level")
-    exp       = features.get("years_experience")
-    prof      = features.get("profession")
-    salary    = features.get("annual_income_lpa")
-    email_dom = features.get("email_domain")
+    return {result.rule: result.score for result in compute_rule_results(features)}
 
-    scores = {}
 
-    # Age ↔ Experience
-    scores["age_experience"] = (
-        score_age_experience(age, exp)
-        if age is not None and exp is not None
-        else 0.0
+def compute_functional_risk_score_detailed(features: dict, collect_profiling: bool = False) -> dict:
+    if collect_profiling:
+        rule_results, rule_runtimes_ms = compute_rule_results_profiled(features)
+    else:
+        rule_results = compute_rule_results(features)
+        rule_runtimes_ms = {}
+    configured_weights = {spec.name: spec.configured_weight for spec in RULE_REGISTRY}
+
+    survival_product = 1.0
+    effective_scores: dict[str, float] = {}
+    for result in rule_results:
+        configured_weight = configured_weights.get(result.rule, 0.0)
+        effective = (
+            clamp01(result.score)
+            * clamp01(result.confidence)
+            * clamp01(result.evidence_weight)
+            * clamp01(configured_weight)
+        )
+        effective = clamp01(effective)
+        effective_scores[result.rule] = effective
+        survival_product *= (1.0 - effective)
+
+    combined_risk = round(clamp01(1.0 - survival_product), 4)
+    risk_level = _classify_risk(combined_risk)
+    flags = [
+        result.rule for result in rule_results
+        if result.score >= PAIR_FLAG_THRESHOLD or effective_scores[result.rule] >= 0.06
+    ]
+
+    top_contributors = _top_contributors(rule_results, effective_scores, limit=5)
+    uncertainty_summary = _uncertainty_summary(rule_results)
+    breakdown = ScoreBreakdown(
+        combined_risk=combined_risk,
+        risk_level=risk_level,
+        survival_product=survival_product,
+        effective_scores=effective_scores,
+        configured_weights=configured_weights,
+        top_contributors=top_contributors,
+        uncertainty_summary=uncertainty_summary,
     )
 
-    # Age ↔ Education
-    scores["age_education"] = (
-        score_age_education(age, edu)
-        if age is not None and edu is not None
-        else 0.0
-    )
+    return {
+        "functional_risk_score": combined_risk,
+        "risk_level": risk_level,
+        "rule_results": [r.to_dict() for r in rule_results],
+        "pair_scores": {r.rule: round(r.score, 4) for r in rule_results},
+        "flags": flags,
+        "score_breakdown": breakdown.to_dict(),
+        "top_contributors": top_contributors,
+        "uncertainty_summary": uncertainty_summary,
+        "profiling": {"rule_runtimes_ms": rule_runtimes_ms} if collect_profiling else {},
+    }
 
-    # Education ↔ Profession
-    scores["education_profession"] = (
-        score_education_profession(edu, prof)
-        if edu is not None and prof is not None
-        else 0.0
-    )
-
-    # Profession ↔ Email
-    scores["profession_email"] = (
-        score_profession_email(prof, email_dom)
-        if prof is not None and email_dom is not None
-        else 0.0
-    )
-
-    # Salary ↔ Experience
-    scores["salary_experience"] = (
-        score_salary_experience(salary, exp)
-        if salary is not None and exp is not None
-        else 0.0
-    )
-
-    # Salary ↔ Profession
-    scores["salary_profession"] = (
-        score_salary_profession(salary, prof)
-        if salary is not None and prof is not None
-        else 0.0
-    )
-
-    # Education ↔ Salary
-    scores["education_salary"] = (
-        score_education_salary(edu, salary)
-        if edu is not None and salary is not None
-        else 0.0
-    )
-
-    return scores
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Weighted fusion
-# ─────────────────────────────────────────────────────────────────────────────
 
 def compute_functional_risk_score(features: dict) -> tuple:
     """
-    Compute the final functional risk score and all supporting outputs.
-
-    Returns:
+    Backward-compatible tuple API:
         (functional_risk_score, pair_scores, flags, risk_level)
-
-        functional_risk_score: float ∈ [0, 1]   — 0=clean, 1=fraud
-        pair_scores:           dict              — individual pair scores
-        flags:                 list[str]         — pairs above threshold
-        risk_level:            str               — low/medium/high/critical
     """
-    pair_scores = compute_pair_scores(features)
-
-    # Weighted sum — pairs with missing data already returned 0.0
-    total_weight_used = 0.0
-    weighted_sum      = 0.0
-
-    for pair, score in pair_scores.items():
-        w = PAIR_WEIGHTS.get(pair, 0.0)
-        weighted_sum      += score * w
-        total_weight_used += w
-
-    # Normalise in case some weights were 0 (shouldn't happen but safe)
-    if total_weight_used > 0:
-        functional_risk_score = weighted_sum / total_weight_used
-    else:
-        functional_risk_score = 0.0
-
-    functional_risk_score = round(min(1.0, max(0.0, functional_risk_score)), 4)
-
-    # Flags: individual pairs that exceed the threshold
-    flags = [
-        pair for pair, score in pair_scores.items()
-        if score >= PAIR_FLAG_THRESHOLD
-    ]
-
-    # Risk level
-    risk_level = _classify_risk(functional_risk_score)
-
-    return functional_risk_score, pair_scores, flags, risk_level
+    detailed = compute_functional_risk_score_detailed(features)
+    return (
+        detailed["functional_risk_score"],
+        detailed["pair_scores"],
+        detailed["flags"],
+        detailed["risk_level"],
+    )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Risk level classifier
-# ─────────────────────────────────────────────────────────────────────────────
+def _top_contributors(rule_results: list[RuleResult], effective_scores: dict[str, float],
+                      limit: int = 5) -> list[dict]:
+    by_rule = {r.rule: r for r in rule_results}
+    top = []
+    for rule, effective in sorted(effective_scores.items(), key=lambda item: item[1], reverse=True):
+        if effective <= 0:
+            continue
+        result = by_rule[rule]
+        top.append({
+            "rule": rule,
+            "effective_score": round(effective, 4),
+            "score": round(result.score, 4),
+            "confidence": round(result.confidence, 4),
+            "evidence_weight": round(result.evidence_weight, 4),
+            "reason": result.reason,
+            "features": result.features,
+        })
+        if len(top) >= limit:
+            break
+    return top
+
+
+def _uncertainty_summary(rule_results: list[RuleResult]) -> dict:
+    low_conf = [r for r in rule_results if r.confidence < 0.5]
+    missing_impact = sum(r.missingness_impact for r in rule_results)
+    avg_conf = (
+        sum(r.confidence for r in rule_results) / len(rule_results)
+        if rule_results else 0.0
+    )
+    return {
+        "average_rule_confidence": round(avg_conf, 4),
+        "low_confidence_rules": [r.rule for r in low_conf],
+        "missingness_impact": round(clamp01(missing_impact), 4),
+    }
+
 
 def _classify_risk(score: float) -> str:
     for level, (lo, hi) in RISK_THRESHOLDS.items():
