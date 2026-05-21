@@ -1034,7 +1034,7 @@ def _formatters() -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate Model 1 functional consistency")
     parser.add_argument("--dataset", type=str, default="../output/profiles.csv")
-    parser.add_argument("--threshold", type=float, default=0.25)
+    parser.add_argument("--threshold", type=float, default=0.50)
     parser.add_argument("--save", type=str, default=None)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--precision-target", type=float, default=0.80)
