@@ -13,6 +13,35 @@ import re
 from constants import COMPANY_DOMAIN_MAP, EMAIL_DOMAIN_CATEGORIES
 from email_features import domains_for_company
 
+# Fraud email generation patterns and personas
+FRAUD_PERSONAS = {
+    "low_signal_social": 0.45,           # mostly normal-looking, subtle signals
+    "medium_signal_impersonator": 0.35,  # professional impersonation attempts
+    "high_risk_disposable": 0.20,        # obvious fraud patterns
+}
+
+SUBTLE_PROFESSIONAL_TOKENS = [
+    "hr", "careers", "recruit", "admin", "support",
+    "billing", "finance", "compliance", "chief", "director",
+    "officer", "verified", "official", "secure", "account",
+]
+
+MILD_SUSPICIOUS_PATTERNS = [
+    "{first}.{last}.{token}",
+    "{first}.{token}",
+    "{first}{yy}.{token}",
+    "{first}_{token}",
+]
+
+HIGH_RISK_PATTERNS = [
+    "{first}{last}admin",
+    "{first}official",
+    "{first}careers",
+    "{first}hr",
+    "support{first}{last}",
+    "admin{first}",
+]
+
 
 def _pick(pool, weights=None):
     if weights:
@@ -33,32 +62,69 @@ def _birth_year_guess(age):
 
 def generate_realistic_username(name, age=None, fraud=False):
     parts = _name_parts(name)
+
     first = parts[0]
     last = parts[-1] if len(parts) > 1 else ""
+
     year = str(_birth_year_guess(age))
     yy = year[-2:]
 
-    if fraud and random.random() < 0.38:
-        return _pick([
-            "sweetangel143",
-            "crypto_king_fx",
-            "richsinglewoman88",
-            "rajiv.investment.team",
-            "urgent.match.hr",
-            "doctor.aiims",
-        ])
-
-    patterns = [
+    normal_patterns = [
         f"{first}.{last}" if last else first,
         f"{first}_{last}" if last else first,
         f"{first}{year}",
         f"{first}.{last}{yy}" if last else f"{first}{yy}",
-        f"{first[0]}.{last}" if last else f"{first}{random.randint(10, 99)}",
-        f"{first}{random.randint(10, 999)}",
+        f"{first[0]}.{last}" if last else f"{first}{random.randint(10,99)}",
+        f"{first}{random.randint(10,999)}",
     ]
-    weights = [0.27, 0.16, 0.16, 0.18, 0.10, 0.13]
-    return _pick(patterns, weights)
 
+    normal_weights = [0.27, 0.16, 0.16, 0.18, 0.10, 0.13]
+
+    if not fraud:
+        return _pick(normal_patterns, normal_weights)
+
+    fraud_style = random.choices(
+        list(FRAUD_PERSONAS.keys()),
+        weights=list(FRAUD_PERSONAS.values()),
+        k=1
+    )[0]
+
+    if fraud_style == "low_signal_social":
+        if random.random() < 0.82:
+            return _pick(normal_patterns, normal_weights)
+
+        token = random.choice(SUBTLE_PROFESSIONAL_TOKENS)
+
+        pattern = random.choice(MILD_SUSPICIOUS_PATTERNS)
+
+        return pattern.format(
+            first=first,
+            last=last,
+            yy=yy,
+            token=token,
+        )
+
+    elif fraud_style == "medium_signal_impersonator":
+
+        token = random.choice(SUBTLE_PROFESSIONAL_TOKENS)
+
+        options = [
+            f"{first}.{last}.hr",
+            f"{first}.career",
+            f"{first}.{token}",
+            f"{first}{yy}.{token}",
+        ]
+
+        return random.choice(options)
+
+    else:
+        pattern = random.choice(HIGH_RISK_PATTERNS)
+
+        return pattern.format(
+            first=first,
+            last=last,
+            yy=yy,
+        )
 
 def _institutional_probability(profession, company):
     p = (profession or "").lower()
@@ -133,13 +199,13 @@ def generate_fraud_email(name, age=None, profession=None, company=None, educatio
         username = generate_realistic_username(name, age=age, fraud=random.random() < 0.42)
     elif roll < 0.70:
         return _impersonation_email(name, profession=profession, company=company)
-    elif roll < 0.82:
+    elif roll < 0.97:
         domain = _pick(EMAIL_DOMAIN_CATEGORIES["typo_squatted"])
         username = generate_realistic_username(name, age=age, fraud=random.random() < 0.45)
-    elif roll < 0.90:
+    elif roll < 0.88:
         domain = _pick(EMAIL_DOMAIN_CATEGORIES["fake_corporate"])
         username = generate_realistic_username(name, age=age, fraud=True)
-    elif roll < 0.96:
+    elif roll < 0.93:
         domain = _pick(EMAIL_DOMAIN_CATEGORIES["disposable"])
         username = generate_realistic_username(name, age=age, fraud=True)
     else:

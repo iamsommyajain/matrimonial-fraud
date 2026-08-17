@@ -15,7 +15,7 @@ RISK_THRESHOLDS = {
     "critical": (0.75, 1.01),
 }
 
-PAIR_FLAG_THRESHOLD = 0.55
+PAIR_FLAG_THRESHOLD = 0.45  # Lowered from 0.55 to capture more signals from high-quality rules
 FUSION_STRATEGY = "probabilistic_sum"
 SATURATION_ALPHA = 3.2
 CONTRIBUTION_TEMPERATURE = 1.0
@@ -139,11 +139,11 @@ FEATURE_CRITICALITY = {
 }
 
 RULE_WEIGHTS = {
-    "age_experience": 0.18,
+    "age_experience": 0.22,  # Increased from 0.18 (high-quality rule with good precision)
     "age_education": 0.10,
-    "education_profession": 0.15,
+    "education_profession": 0.18,  # Increased from 0.15 (excellent separation: 20.5x odds ratio)
     "profession_email": 0.08,
-    "salary_experience": 0.15,
+    "salary_experience": 0.08,  # Reduced from 0.15 (too noisy: 27% firing rate on both fraud & legit)
     "salary_profession": 0.13,
     "education_salary": 0.09,
     "company_income": 0.05,
@@ -151,11 +151,11 @@ RULE_WEIGHTS = {
     "behavioral_integrity": 0.07,
     "textual_quality": 0.04,
     "contextual_missingness": 0.16,
-    "interaction_salary_experience": 0.18,
+    "interaction_salary_experience": 0.22,  # Increased from 0.18 (3.9x lift when fires)
     "interaction_education_income_trajectory": 0.11,
     "interaction_text_email": 0.12,
     "interaction_income_behavior": 0.10,
-    "interaction_sparse_inconsistency": 0.14,
+    "interaction_sparse_inconsistency": 0.18,  # Increased from 0.14 (excellent quality)
 }
 
 RULE_EVIDENCE_WEIGHTS = {

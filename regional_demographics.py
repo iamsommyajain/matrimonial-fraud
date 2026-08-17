@@ -11,7 +11,7 @@ import random
 
 from constants import (
     ALL_CITIES,
-    CASTES_BY_RELIGION,
+    CASTE_PRIORS_BY_RELIGION,
     CASTES_BY_STATE_AND_RELIGION,
     CITY_STATE_MAP,
     CITY_WEIGHTS,
@@ -147,9 +147,9 @@ def pick_caste(native_state, religion):
     if caste_dist:
         return weighted_pick(caste_dist)
 
-    fallback = CASTES_BY_RELIGION.get(religion)
+    fallback = CASTE_PRIORS_BY_RELIGION.get(religion)
     if fallback:
-        return random.choice(fallback)
+        return weighted_pick(fallback)
     return "Not specified"
 
 
@@ -201,7 +201,7 @@ def generate_regional_demographics(gender, migration=True, migration_probability
 def caste_is_possible(religion, caste):
     if caste == "Not specified":
         return True
-    valid = set(CASTES_BY_RELIGION.get(religion, []))
+    valid = set(CASTE_PRIORS_BY_RELIGION.get(religion, []))
     return caste in valid
 
 

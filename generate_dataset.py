@@ -52,6 +52,7 @@ from fraud_injector import (
 )
 from graph_generator import build_interaction_graph
 from report_generator import generate_all_reports
+from validation import validate_dataset
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -360,6 +361,8 @@ def main(seed=42, output_dir="./output", skip_graph=False):
     df.to_parquet(pq_path, index=False)
     print(f"Saved: {csv_path}")
     print(f"Saved: {pq_path}")
+
+    validate_dataset(df, output_dir)
 
     # ── Step 5: Temporal split ────────────────────────────────────────────
     print("Performing temporal split (train: months 1-4, val: 5, test: 6)...")

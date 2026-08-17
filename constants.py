@@ -5,6 +5,10 @@ Keeping these separate means you can expand the vocabulary without
 touching any generation logic.
 """
 
+from __future__ import annotations
+from dataclasses import dataclass
+from typing import Dict, List, Optional, TypedDict
+
 import numpy as np
 
 # ── Demographic pools ─────────────────────────────────────────────────────────
@@ -12,15 +16,128 @@ import numpy as np
 RELIGIONS = ["Hindu", "Muslim", "Sikh", "Christian", "Jain", "Buddhist", "Parsi"]
 RELIGION_WEIGHTS = [0.79, 0.12, 0.02, 0.02, 0.02, 0.01, 0.01]  # approx India census
 
-CASTES_BY_RELIGION = {
-    "Hindu":    ["Brahmin", "Kshatriya", "Vaishya", "OBC", "SC", "ST", "Not specified"],
-    "Muslim":   ["Sunni", "Shia", "Ahmadiyya", "Not specified"],
-    "Sikh":     ["Jat", "Khatri", "Arora", "Not specified"],
-    "Christian":["Catholic", "Protestant", "Orthodox", "Not specified"],
-    "Jain":     ["Digambara", "Shvetambara", "Not specified"],
-    "Buddhist": ["Mahayana", "Theravada", "Not specified"],
-    "Parsi":    ["Parsi", "Not specified"],
+RELIGION_STRUCTURE = {
+    "Hindu": {
+        "sects": [
+            "Shaiva",
+            "Vaishnava",
+            "Shakta",
+            "Smarta",
+            "Not specified"
+        ],
+
+        "communities": {
+            "North": [
+                "Brahmin",
+                "Rajput",
+                "Kayastha",
+                "Bania",
+                "Jat",
+                "Yadav",
+                "Gujjar",
+                "Kurmi",
+            ],
+
+            "South": [
+                "Iyer",
+                "Iyengar",
+                "Nair",
+                "Ezhava",
+                "Reddy",
+                "Kamma",
+                "Lingayat",
+                "Vokkaliga",
+            ],
+
+            "West": [
+                "Maratha",
+                "CKP",
+                "Patidar",
+                "Lohana",
+                "Brahmin",
+            ],
+
+            "East": [
+                "Kayastha",
+                "Mahishya",
+                "Baidya",
+                "Brahmin",
+            ]
+        }
+    },
+
+    "Muslim": {
+        "sects": [
+            "Sunni",
+            "Shia",
+            "Ahmadiyya",
+            "Not specified"
+        ],
+
+        "communities": [
+            "Syed",
+            "Ansari",
+            "Qureshi",
+            "Memon",
+            "Pathan",
+            "Sheikh",
+            "Bohra",
+        ]
+    },
+
+    "Sikh": {
+        "communities": [
+            "Jat",
+            "Khatri",
+            "Arora",
+            "Ramgarhia",
+        ]
+    },
+
+    "Christian": {
+        "denominations": [
+            "Catholic",
+            "Protestant",
+            "Orthodox",
+            "Pentecostal",
+        ],
+
+        "communities": [
+            "Syrian Christian",
+            "Latin Catholic",
+            "Anglo-Indian",
+        ]
+    },
+
+    "Jain": {
+        "sects": [
+            "Digambara",
+            "Shvetambara",
+        ]
+    },
+
+    "Buddhist": {
+        "sects": [
+            "Mahayana",
+            "Theravada",
+            "Navayana",
+        ]
+    },
+
+    "Parsi": {
+        "communities": [
+            "Parsi"
+        ]
+    }
 }
+
+SOCIAL_CATEGORY = [
+    "General",
+    "OBC",
+    "SC",
+    "ST",
+    "Not specified"
+]
 
 MOTHER_TONGUES = ["Hindi", "Bengali", "Telugu", "Marathi", "Tamil", "Gujarati",
                   "Urdu", "Kannada", "Odia", "Malayalam", "Punjabi", "Assamese"]
@@ -39,7 +156,7 @@ EDUCATION_FIELDS = {
     "12th":          ["Science", "Commerce", "Arts"],
     "Graduate":      ["Engineering", "Medicine", "Commerce", "Arts", "Science",
                       "Law", "Architecture", "Pharmacy", "Nursing"],
-    "Post Graduate": ["MBA", "M.Tech", "M.Sc", "MA", "MCA", "LLM", "MD", "MS"],
+    "Post Graduate": ["MBA", "M.Tech", "M.Sc", "MA", "MCA", "LLM", "MD", "MS", "Analytics", "Hospital Administration"],
     "PhD":           ["Engineering", "Sciences", "Humanities", "Medicine", "Management"],
 }
 
@@ -196,118 +313,642 @@ COLLEGE_CATEGORY_WEIGHTS = {
 
 COLLEGE_METADATA = {}
 
-COLLEGE_TIER_META = {
-    "elite": {
-        "acceptance_weight": 0.008,
-        "avg_salary_multiplier": 2.8,
-        "migration_affinity": 0.87,
+class MigrationProfile(TypedDict):
+    metro_migration_affinity: float
+    international_migration_affinity: float
+    career_mobility: float
+    marriage_relocation_openness: float
+
+class CollegeMetadata(TypedDict, total=False):
+    tier: str
+    fields: List[str]
+    field_distribution: Dict[str, float]
+    city: Optional[str]
+    category: str
+    admission_selectivity: float
+    platform_representation: float
+    prestige_score: float
+    avg_salary_multiplier: float
+    migration_profile: MigrationProfile
+    acceptance_weight: float
+    migration_affinity: float
+
+COLLEGE_FIELD_DISTRIBUTIONS = {
+    "elite_engineering": {
+        "Engineering": 0.55,
+        "Computer Science": 0.35,
+        "Science": 0.10,
     },
-    "premium": {
-        "acceptance_weight": 0.04,
-        "avg_salary_multiplier": 2.0,
-        "migration_affinity": 0.65,
+    "top_universities": {
+        "Arts": 0.32,
+        "Science": 0.28,
+        "Commerce": 0.18,
+        "Law": 0.12,
+        "Engineering": 0.06,
+        "Management": 0.04,
     },
-    "upper_mid": {
-        "acceptance_weight": 0.14,
-        "avg_salary_multiplier": 1.4,
-        "migration_affinity": 0.44,
+    "private_reputed": {
+        "Engineering": 0.38,
+        "Management": 0.24,
+        "Commerce": 0.16,
+        "Science": 0.12,
+        "Arts": 0.08,
+        "Law": 0.02,
     },
-    "mid": {
-        "acceptance_weight": 0.30,
-        "avg_salary_multiplier": 1.0,
-        "migration_affinity": 0.24,
+    "regional_state": {
+        "Engineering": 0.26,
+        "Science": 0.22,
+        "Commerce": 0.18,
+        "Arts": 0.18,
+        "Law": 0.08,
+        "Management": 0.08,
     },
-    "local": {
-        "acceptance_weight": 0.55,
-        "avg_salary_multiplier": 0.72,
-        "migration_affinity": 0.12,
+    "local_private": {
+        "Engineering": 0.20,
+        "Science": 0.18,
+        "Commerce": 0.22,
+        "Arts": 0.24,
+        "Law": 0.06,
+        "Management": 0.10,
+    },
+    "elite_mba": {
+        "MBA": 0.72,
+        "Management": 0.18,
+        "Commerce": 0.10,
+    },
+    "technical_pg": {
+        "M.Tech": 0.60,
+        "M.Sc": 0.20,
+        "MBA": 0.10,
+        "Analytics": 0.10,
+    },
+    "medical_pg": {
+        "MD": 0.46,
+        "MS": 0.34,
+        "M.Sc": 0.12,
+        "Hospital Administration": 0.08,
+    },
+    "general_pg": {
+        "MA": 0.28,
+        "M.Sc": 0.24,
+        "MBA": 0.18,
+        "MCA": 0.12,
+        "LLM": 0.08,
+        "Analytics": 0.10,
+    },
+    "top_research": {
+        "Sciences": 0.38,
+        "Engineering": 0.30,
+        "Humanities": 0.18,
+        "Management": 0.14,
+    },
+    "good_universities": {
+        "Arts": 0.30,
+        "Science": 0.30,
+        "Commerce": 0.18,
+        "Law": 0.10,
+        "Management": 0.12,
+    },
+    "generic": {
+        "Arts": 0.26,
+        "Science": 0.24,
+        "Commerce": 0.18,
+        "Law": 0.12,
+        "Management": 0.10,
+        "MCA": 0.10,
+    },
+    "school": {
+        "General": 0.5,
+        "Science": 0.25,
+        "Commerce": 0.15,
+        "Arts": 0.10,
     },
 }
+
+COLLEGE_OVERRIDES = {
+    "IIT Delhi": {
+        "tier": "elite",
+        "city": "Delhi",
+        "category": "elite_engineering",
+        "admission_selectivity": 0.010,
+        "platform_representation": 0.055,
+        "prestige_score": 0.95,
+        "avg_salary_multiplier": 2.9,
+        "field_distribution": {
+            "Engineering": 0.58,
+            "Computer Science": 0.42,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.82,
+            "international_migration_affinity": 0.22,
+            "career_mobility": 0.78,
+            "marriage_relocation_openness": 0.60,
+        },
+    },
+    "IIT Bombay": {
+        "tier": "elite",
+        "city": "Mumbai",
+        "category": "elite_engineering",
+        "admission_selectivity": 0.010,
+        "platform_representation": 0.050,
+        "prestige_score": 0.95,
+        "avg_salary_multiplier": 2.9,
+        "field_distribution": {
+            "Engineering": 0.55,
+            "Computer Science": 0.45,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.80,
+            "international_migration_affinity": 0.24,
+            "career_mobility": 0.80,
+            "marriage_relocation_openness": 0.58,
+        },
+    },
+    "IIT Madras": {
+        "tier": "elite",
+        "city": "Chennai",
+        "category": "elite_engineering",
+        "admission_selectivity": 0.010,
+        "platform_representation": 0.045,
+        "prestige_score": 0.94,
+        "avg_salary_multiplier": 2.85,
+        "field_distribution": {
+            "Engineering": 0.60,
+            "Computer Science": 0.40,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.78,
+            "international_migration_affinity": 0.20,
+            "career_mobility": 0.75,
+            "marriage_relocation_openness": 0.55,
+        },
+    },
+    "IIIT Hyderabad": {
+        "tier": "elite",
+        "city": "Hyderabad",
+        "category": "elite_engineering",
+        "admission_selectivity": 0.015,
+        "platform_representation": 0.055,
+        "prestige_score": 0.92,
+        "avg_salary_multiplier": 2.8,
+        "field_distribution": {
+            "Engineering": 0.45,
+            "Computer Science": 0.40,
+            "Science": 0.15,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.84,
+            "international_migration_affinity": 0.18,
+            "career_mobility": 0.76,
+            "marriage_relocation_openness": 0.62,
+        },
+    },
+    "Ashoka University": {
+        "tier": "premium",
+        "city": "Sonepat",
+        "category": "top_universities",
+        "admission_selectivity": 0.06,
+        "platform_representation": 0.025,
+        "prestige_score": 0.88,
+        "avg_salary_multiplier": 1.7,
+        "field_distribution": {
+            "Arts": 0.35,
+            "Science": 0.25,
+            "Commerce": 0.20,
+            "Management": 0.10,
+            "Law": 0.10,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.65,
+            "international_migration_affinity": 0.28,
+            "career_mobility": 0.58,
+            "marriage_relocation_openness": 0.60,
+        },
+    },
+    "ISI Kolkata": {
+        "tier": "premium",
+        "city": "Kolkata",
+        "category": "top_research",
+        "admission_selectivity": 0.05,
+        "platform_representation": 0.020,
+        "prestige_score": 0.90,
+        "avg_salary_multiplier": 2.1,
+        "field_distribution": {
+            "Sciences": 0.64,
+            "Engineering": 0.18,
+            "Humanities": 0.12,
+            "Management": 0.06,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.70,
+            "international_migration_affinity": 0.32,
+            "career_mobility": 0.62,
+            "marriage_relocation_openness": 0.50,
+        },
+    },
+    "NLSIU": {
+        "tier": "elite",
+        "city": "Bangalore",
+        "category": "top_universities",
+        "admission_selectivity": 0.018,
+        "platform_representation": 0.022,
+        "prestige_score": 0.91,
+        "avg_salary_multiplier": 2.5,
+        "field_distribution": {
+            "Law": 0.82,
+            "Commerce": 0.10,
+            "Management": 0.08,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.78,
+            "international_migration_affinity": 0.22,
+            "career_mobility": 0.71,
+            "marriage_relocation_openness": 0.53,
+        },
+    },
+    "SPJIMR": {
+        "tier": "premium",
+        "city": "Mumbai",
+        "category": "elite_mba",
+        "admission_selectivity": 0.07,
+        "platform_representation": 0.035,
+        "prestige_score": 0.89,
+        "avg_salary_multiplier": 2.15,
+        "field_distribution": {
+            "MBA": 0.72,
+            "Management": 0.18,
+            "Commerce": 0.10,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.70,
+            "international_migration_affinity": 0.24,
+            "career_mobility": 0.65,
+            "marriage_relocation_openness": 0.57,
+        },
+    },
+    "FMS Delhi": {
+        "tier": "premium",
+        "city": "Delhi",
+        "category": "elite_mba",
+        "admission_selectivity": 0.06,
+        "platform_representation": 0.030,
+        "prestige_score": 0.88,
+        "avg_salary_multiplier": 2.1,
+        "field_distribution": {
+            "MBA": 0.65,
+            "Management": 0.22,
+            "Commerce": 0.13,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.71,
+            "international_migration_affinity": 0.27,
+            "career_mobility": 0.64,
+            "marriage_relocation_openness": 0.58,
+        },
+    },
+    "BITS Pilani Dubai": {
+        "tier": "premium",
+        "city": "Dubai",
+        "category": "elite_engineering",
+        "admission_selectivity": 0.028,
+        "platform_representation": 0.015,
+        "prestige_score": 0.84,
+        "avg_salary_multiplier": 2.0,
+        "field_distribution": {
+            "Engineering": 0.50,
+            "Computer Science": 0.40,
+            "Science": 0.10,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.72,
+            "international_migration_affinity": 0.42,
+            "career_mobility": 0.68,
+            "marriage_relocation_openness": 0.66,
+        },
+    },
+    "Jadavpur University": {
+        "tier": "premium",
+        "city": "Kolkata",
+        "category": "top_universities",
+        "admission_selectivity": 0.085,
+        "platform_representation": 0.035,
+        "prestige_score": 0.76,
+        "avg_salary_multiplier": 1.5,
+        "field_distribution": {
+            "Engineering": 0.32,
+            "Science": 0.24,
+            "Arts": 0.20,
+            "Commerce": 0.14,
+            "Law": 0.05,
+            "Management": 0.05,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.62,
+            "international_migration_affinity": 0.16,
+            "career_mobility": 0.58,
+            "marriage_relocation_openness": 0.53,
+        },
+    },
+    "VIT Vellore": {
+        "tier": "upper_mid",
+        "city": "Vellore",
+        "category": "private_reputed",
+        "admission_selectivity": 0.35,
+        "platform_representation": 0.048,
+        "prestige_score": 0.58,
+        "avg_salary_multiplier": 1.35,
+        "field_distribution": {
+            "Engineering": 0.46,
+            "Science": 0.18,
+            "Commerce": 0.14,
+            "Arts": 0.10,
+            "Management": 0.12,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.48,
+            "international_migration_affinity": 0.12,
+            "career_mobility": 0.47,
+            "marriage_relocation_openness": 0.45,
+        },
+    },
+    "SRM Institute of Science and Technology": {
+        "tier": "upper_mid",
+        "city": "Chennai",
+        "category": "private_reputed",
+        "admission_selectivity": 0.38,
+        "platform_representation": 0.045,
+        "prestige_score": 0.54,
+        "avg_salary_multiplier": 1.3,
+        "field_distribution": {
+            "Engineering": 0.44,
+            "Science": 0.16,
+            "Commerce": 0.14,
+            "Arts": 0.12,
+            "Management": 0.14,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.50,
+            "international_migration_affinity": 0.10,
+            "career_mobility": 0.49,
+            "marriage_relocation_openness": 0.47,
+        },
+    },
+    "Manipal University": {
+        "tier": "upper_mid",
+        "city": "Manipal",
+        "category": "private_reputed",
+        "admission_selectivity": 0.42,
+        "platform_representation": 0.052,
+        "prestige_score": 0.56,
+        "avg_salary_multiplier": 1.34,
+        "field_distribution": {
+            "Engineering": 0.32,
+            "Science": 0.20,
+            "Commerce": 0.18,
+            "Arts": 0.10,
+            "Management": 0.20,
+        },
+        "migration_profile": {
+            "metro_migration_affinity": 0.45,
+            "international_migration_affinity": 0.14,
+            "career_mobility": 0.44,
+            "marriage_relocation_openness": 0.46,
+        },
+    },
+}
+
+COLLEGE_TIER_META = {
+    "elite": {
+        "admission_selectivity": 0.01,
+        "platform_representation": 0.04,
+        "prestige_score": 0.94,
+        "avg_salary_multiplier": 2.8,
+        "migration_profile": {
+            "metro_migration_affinity": 0.78,
+            "international_migration_affinity": 0.30,
+            "career_mobility": 0.75,
+            "marriage_relocation_openness": 0.63,
+        },
+    },
+    "premium": {
+        "admission_selectivity": 0.05,
+        "platform_representation": 0.12,
+        "prestige_score": 0.76,
+        "avg_salary_multiplier": 1.9,
+        "migration_profile": {
+            "metro_migration_affinity": 0.65,
+            "international_migration_affinity": 0.19,
+            "career_mobility": 0.60,
+            "marriage_relocation_openness": 0.52,
+        },
+    },
+    "upper_mid": {
+        "admission_selectivity": 0.14,
+        "platform_representation": 0.22,
+        "prestige_score": 0.57,
+        "avg_salary_multiplier": 1.45,
+        "migration_profile": {
+            "metro_migration_affinity": 0.50,
+            "international_migration_affinity": 0.12,
+            "career_mobility": 0.44,
+            "marriage_relocation_openness": 0.42,
+        },
+    },
+    "mid": {
+        "admission_selectivity": 0.30,
+        "platform_representation": 0.28,
+        "prestige_score": 0.36,
+        "avg_salary_multiplier": 1.08,
+        "migration_profile": {
+            "metro_migration_affinity": 0.34,
+            "international_migration_affinity": 0.07,
+            "career_mobility": 0.28,
+            "marriage_relocation_openness": 0.30,
+        },
+    },
+    "local": {
+        "admission_selectivity": 0.55,
+        "platform_representation": 0.34,
+        "prestige_score": 0.18,
+        "avg_salary_multiplier": 0.80,
+        "migration_profile": {
+            "metro_migration_affinity": 0.22,
+            "international_migration_affinity": 0.03,
+            "career_mobility": 0.14,
+            "marriage_relocation_openness": 0.20,
+        },
+    },
+}
+
+COHORT_METADATA = {
+    "young_professional": {
+        "age_range": (22, 27),
+        "startup_bias": 1.40,
+        "legacy_it_bias": 0.80,
+        "government_bias": 0.75,
+        "remote_work_bias": 0.88,
+        "migration_bias": 1.05,
+    },
+    "mid_career": {
+        "age_range": (28, 35),
+        "startup_bias": 1.15,
+        "legacy_it_bias": 1.00,
+        "government_bias": 0.90,
+        "remote_work_bias": 0.76,
+        "migration_bias": 0.95,
+    },
+    "established_leadership": {
+        "age_range": (36, 50),
+        "startup_bias": 0.75,
+        "legacy_it_bias": 1.20,
+        "government_bias": 1.10,
+        "remote_work_bias": 0.60,
+        "migration_bias": 0.82,
+    },
+}
+
+EMAIL_DOMAIN_COHORT_PREFERENCES = {
+    "young": {"personal": 0.80, "institutional": 0.10, "privacy_focused": 0.07, "legacy": 0.03},
+    "mid":   {"personal": 0.76, "institutional": 0.13, "privacy_focused": 0.07, "legacy": 0.04},
+    "older": {"personal": 0.70, "institutional": 0.18, "privacy_focused": 0.06, "legacy": 0.06},
+}
+
+EMAIL_INSTITUTIONAL_BOOST = {
+    "doctor": 0.18,
+    "professor": 0.16,
+    "scientist": 0.14,
+    "government": 0.13,
+    "ias": 0.12,
+    "ips": 0.12,
+    "lawyer": 0.08,
+}
+
+EMAIL_DOMAIN_LEGACY_PROVIDERS = [
+    "yahoo.com",
+    "hotmail.com",
+    "rediffmail.com",
+    "live.com",
+]
+
+COLLEGE_TIER_CATEGORY_MAP = {
+    "elite_engineering",
+    "elite_mba",
+    "top_universities",
+    "top_research",
+    "private_reputed",
+    "technical_pg",
+    "medical_pg",
+    "general_pg",
+    "good_universities",
+    "regional_state",
+    "generic",
+    "local_private",
+    "school",
+}
+
+def _normalize_distribution(dist: Dict[str, float]) -> Dict[str, float]:
+    total = sum(dist.values())
+    if total <= 0:
+        return {key: 1.0 / len(dist) for key in dist}
+    return {key: value / total for key, value in dist.items()}
+
+def _category_tier(category: str) -> str:
+    if category in {"elite_engineering", "elite_mba", "top_research"}:
+        return "elite"
+    if category in {"top_universities", "good_universities", "technical_pg", "medical_pg"}:
+        return "premium"
+    if category in {"private_reputed", "general_pg"}:
+        return "upper_mid"
+    if category in {"regional_state", "generic"}:
+        return "mid"
+    return "local"
 
 for level, categories in COLLEGES.items():
     for category, names in categories.items():
         for name in names:
-            if category.startswith("elite") or name.startswith(("IIT", "IIM", "BITS", "AIIMS", "IISc", "TIFR")):
-                tier = "elite"
-            elif category in {"top_universities", "technical_pg", "medical_pg", "top_research", "good_universities"}:
-                tier = "premium"
-            elif category in {"private_reputed", "general_pg"}:
-                tier = "upper_mid"
-            elif category in {"regional_state", "generic"}:
-                tier = "mid"
-            else:
-                tier = "local"
-
+            override = COLLEGE_OVERRIDES.get(name, {})
+            tier = override.get("tier") or _category_tier(category)
             tier_meta = COLLEGE_TIER_META[tier]
-            fields = ["General"]
-            if any(k in name for k in ["IIT", "NIT", "IIIT", "Engineering", "BITS"]):
-                fields = ["Engineering", "Computer Science", "Science"]
-            elif any(k in name for k in ["AIIMS", "CMC", "Medical"]):
-                fields = ["Medicine", "Nursing", "Pharmacy"]
-            elif any(k in name for k in ["IIM", "XLRI", "Management"]):
-                fields = ["MBA", "Management", "Commerce"]
-            elif any(k in name for k in ["University", "College", "JNU"]):
-                fields = ["Arts", "Science", "Commerce", "Law"]
-
-            field_multiplier = 1.0
-            if "Medicine" in fields:
-                field_multiplier = 1.12
-            elif "Management" in fields:
-                field_multiplier = 1.08
-            elif "Computer Science" in fields:
-                field_multiplier = 1.05
-
+            field_distribution = override.get(
+                "field_distribution",
+                COLLEGE_FIELD_DISTRIBUTIONS.get(category, {field: 1.0 for field in EDUCATION_FIELDS[level]})
+            )
+            field_distribution = _normalize_distribution({
+                f: v for f, v in field_distribution.items() if f in EDUCATION_FIELDS[level]
+            })
+            if not field_distribution:
+                field_distribution = _normalize_distribution({field: 1.0 for field in EDUCATION_FIELDS[level]})
+            fields = list(field_distribution)
+            admission_selectivity = override.get("admission_selectivity", tier_meta["admission_selectivity"])
+            platform_representation = override.get("platform_representation", tier_meta["platform_representation"])
+            prestige_score = override.get("prestige_score", tier_meta["prestige_score"])
+            avg_salary_multiplier = override.get("avg_salary_multiplier", tier_meta["avg_salary_multiplier"])
+            migration_profile = override.get("migration_profile", tier_meta["migration_profile"])
+            migration_affinity = (
+                0.4 * migration_profile["metro_migration_affinity"]
+                + 0.35 * migration_profile["career_mobility"]
+                + 0.25 * migration_profile["international_migration_affinity"]
+            )
             COLLEGE_METADATA[name] = {
                 "tier": tier,
                 "fields": fields,
-                "city": None,
+                "field_distribution": field_distribution,
+                "city": override.get("city"),
                 "category": category,
-                "acceptance_weight": tier_meta["acceptance_weight"],
-                "avg_salary_multiplier": tier_meta["avg_salary_multiplier"] * field_multiplier,
-                "migration_affinity": tier_meta["migration_affinity"],
+                "admission_selectivity": admission_selectivity,
+                "platform_representation": platform_representation,
+                "prestige_score": prestige_score,
+                "avg_salary_multiplier": avg_salary_multiplier,
+                "migration_profile": migration_profile,
+                "migration_affinity": migration_affinity,
+                "acceptance_weight": admission_selectivity,
             }
 
 COLLEGE_METADATA.update({
-    "IIT Delhi": {
-        "tier": "elite",
-        "fields": ["Engineering", "Computer Science"],
-        "city": "Delhi",
-        "category": "elite_engineering",
-        "acceptance_weight": 0.01,
-    },
-    "IIT Bombay": {
-        "tier": "elite",
-        "fields": ["Engineering", "Computer Science"],
-        "city": "Mumbai",
-        "category": "elite_engineering",
-        "acceptance_weight": 0.01,
-    },
-    "IIT Madras": {
-        "tier": "elite",
-        "fields": ["Engineering", "Computer Science"],
-        "city": "Chennai",
-        "category": "elite_engineering",
-        "acceptance_weight": 0.01,
-    },
-    "AIIMS Delhi": {
-        "tier": "elite",
-        "fields": ["Medicine"],
-        "city": "Delhi",
-        "category": "medical_pg",
-        "acceptance_weight": 0.01,
-        "avg_salary_multiplier": 2.4,
-        "migration_affinity": 0.78,
-    },
-    "Delhi University": {
-        "tier": "premium",
-        "fields": ["Arts", "Science", "Commerce", "Law"],
-        "city": "Delhi",
-        "category": "top_universities",
-        "acceptance_weight": 0.05,
-        "avg_salary_multiplier": 1.45,
-        "migration_affinity": 0.62,
-    },
+    name: {**COLLEGE_METADATA.get(name, {}), **override}
+    for name, override in COLLEGE_OVERRIDES.items()
 })
+
+def validate_metadata_consistency() -> List[str]:
+    errors = []
+
+    for college_name, metadata in COLLEGE_METADATA.items():
+        if metadata.get("tier") not in COLLEGE_TIER_META:
+            errors.append(f"Invalid tier for college {college_name}: {metadata.get('tier')}")
+        if not (0 <= metadata.get("admission_selectivity", 0) <= 1):
+            errors.append(f"Invalid admission_selectivity for {college_name}")
+        if not (0 <= metadata.get("platform_representation", 0) <= 1):
+            errors.append(f"Invalid platform_representation for {college_name}")
+        if not (0 <= metadata.get("prestige_score", 0) <= 1):
+            errors.append(f"Invalid prestige_score for {college_name}")
+        field_dist = metadata.get("field_distribution", {})
+        if abs(sum(field_dist.values()) - 1.0) > 1e-6:
+            errors.append(f"Field distribution does not sum to 1 for {college_name}")
+
+    for company_name, metadata in COMPANY_METADATA.items():
+        if metadata.get("tier") is None:
+            errors.append(f"Company metadata missing tier for {company_name}")
+        if metadata.get("industry") is None:
+            errors.append(f"Company metadata missing industry for {company_name}")
+        if not (0 <= metadata.get("remote_work_affinity", 0) <= 1):
+            errors.append(f"Invalid remote_work_affinity for {company_name}")
+        if not (0 <= metadata.get("prestige_score", 0) <= 1):
+            errors.append(f"Invalid prestige_score for {company_name}")
+        if not (0 <= metadata.get("work_life_balance", 0) <= 1):
+            errors.append(f"Invalid work_life_balance for {company_name}")
+        sd = metadata.get("salary_distribution", {})
+        if sd and sd.get("sigma_adjustment", 0) < 0:
+            errors.append(f"Invalid salary_distribution sigma_adjustment for {company_name}")
+
+    for cohort_name, cohort_meta in COHORT_METADATA.items():
+        if cohort_name not in {"young_professional", "mid_career", "established_leadership"}:
+            errors.append(f"Unexpected cohort label: {cohort_name}")
+
+    for domain_type, domains in EMAIL_DOMAIN_CATEGORIES.items():
+        if not domains:
+            errors.append(f"Empty email domain category: {domain_type}")
+
+    return errors
 
 # ── Profession ────────────────────────────────────────────────────────────────
 
@@ -331,8 +972,8 @@ COMPANIES_LEGITIMATE = {
     "tech":     ["TCS", "Infosys", "Wipro", "HCL", "Tech Mahindra", "Accenture India",
                  "IBM India", "Capgemini", "Cognizant", "L&T Infotech", "Mphasis",
                  "Hexaware", "Mindtree", "Persistent Systems", "NIIT Technologies", "Goldman Sachs", "Amazon India", "Google India", "Microsoft India", "Meta",
-                 "Apple India", "Flipkart", "Zomato", "Swiggy", "Paytm", "Ola", "Uber India", "Linkedin", "Adobe India", "Salesforce India", "Oracle India", "SAP India",
-                 "Samsung"],
+                 "Apple India", "Flipkart", "Zomato", "Swiggy", "Paytm", "Ola", "Uber India", "LinkedIn", "Adobe India", "Salesforce India", "Oracle India", "SAP India",
+                 "Samsung", "Razorpay", "Zerodha", "CRED", "Groww", "Meesho", "Zepto", "PhonePe"],
     "finance":  ["HDFC Bank", "ICICI Bank", "SBI", "Axis Bank", "Kotak Mahindra",
                  "HDFC Life", "LIC", "Deloitte", "PwC India", "KPMG India", "EY India"],
     "govt":     ["Central Government", "State Government", "PSU Company", "DRDO",
@@ -395,7 +1036,12 @@ COMPANY_DOMAIN_MAP = {
     "Tech Mahindra": ["techmahindra.com"],
     "Accenture India": ["accenture.com"],
     "Cognizant": ["cognizant.com"],
-    "Google": ["google.com"],
+    "Google India": ["google.com"],
+    "Microsoft India": ["microsoft.com"],
+    "Meta": ["meta.com"],
+    "Apple India": ["apple.com"],
+    "Goldman Sachs": ["goldmansachs.com"],
+    "Amazon India": ["amazon.in", "amazon.com"],
     "HDFC Bank": ["hdfcbank.com"],
     "ICICI Bank": ["icicibank.com"],
     "SBI": ["sbi.co.in"],
@@ -410,6 +1056,27 @@ COMPANY_DOMAIN_MAP = {
     "IIT Madras": ["iitm.ac.in"],
     "IISc Bangalore": ["iisc.ac.in"],
     "Delhi University": ["du.ac.in"],
+    "Goldman Sachs": ["goldmansachs.com"],
+    "Amazon India": ["amazon.in", "amazon.com"],
+    "LinkedIn": ["linkedin.com"],
+    "Flipkart": ["flipkart.com"],
+    "Ola": ["ola.com"],
+    "Uber India": ["uber.com"],
+    "Zomato": ["zomato.com"],
+    "Swiggy": ["swiggy.com"],
+    "Paytm": ["paytm.com"],
+    "Adobe India": ["adobe.com"],
+    "Salesforce India": ["salesforce.com"],
+    "Oracle India": ["oracle.com"],
+    "SAP India": ["sap.com"],
+    "Samsung": ["samsung.com"],
+    "Razorpay": ["razorpay.com"],
+    "Zerodha": ["zerodha.com"],
+    "CRED": ["cred.club"],
+    "Groww": ["groww.in"],
+    "Meesho": ["meesho.com"],
+    "Zepto": ["zepto.com"],
+    "PhonePe": ["phonepe.com"],
     "Government of India": ["gov.in", "nic.in"],
     "Central Government": ["gov.in", "nic.in"],
     "State Government": ["gov.in"],
@@ -447,6 +1114,114 @@ COMPANY_METADATA = {
         "industry": "tech",
         "salary_multiplier": 2.4,
         "city_affinity": ["tier1"],
+    },
+    "Apple India": {
+        "tier": "elite",
+        "industry": "tech",
+        "salary_multiplier": 3.0,
+        "city_affinity": ["tier1"],
+    },
+    "LinkedIn": {
+        "tier": "elite",
+        "industry": "tech",
+        "salary_multiplier": 2.8,
+        "city_affinity": ["tier1"],
+    },
+    "Amazon India": {
+        "tier": "upper_mid",
+        "industry": "tech",
+        "salary_multiplier": 2.6,
+        "city_affinity": ["tier1"],
+    },
+    "Flipkart": {
+        "tier": "upper_mid",
+        "industry": "tech",
+        "salary_multiplier": 2.2,
+        "city_affinity": ["tier1", "tier2"],
+    },
+    "Ola": {
+        "tier": "upper_mid",
+        "industry": "tech",
+        "salary_multiplier": 1.9,
+        "city_affinity": ["tier1", "tier2"],
+    },
+    "Uber India": {
+        "tier": "upper_mid",
+        "industry": "tech",
+        "salary_multiplier": 2.1,
+        "city_affinity": ["tier1", "tier2"],
+    },
+    "Zomato": {
+        "tier": "mid",
+        "industry": "tech",
+        "salary_multiplier": 1.4,
+        "city_affinity": ["tier1", "tier2"],
+    },
+    "Swiggy": {
+        "tier": "mid",
+        "industry": "tech",
+        "salary_multiplier": 1.3,
+        "city_affinity": ["tier1", "tier2"],
+    },
+    "Paytm": {
+        "tier": "upper_mid",
+        "industry": "finance",
+        "salary_multiplier": 1.8,
+        "city_affinity": ["tier1", "tier2"],
+    },
+    "SAP India": {
+        "tier": "upper_mid",
+        "industry": "tech",
+        "salary_multiplier": 2.2,
+        "city_affinity": ["tier1"],
+    },
+    "Samsung": {
+        "tier": "upper_mid",
+        "industry": "tech",
+        "salary_multiplier": 2.0,
+        "city_affinity": ["tier1", "tier2"],
+    },
+    "Razorpay": {
+        "tier": "upper_mid",
+        "industry": "finance",
+        "salary_multiplier": 1.9,
+        "city_affinity": ["tier1"],
+    },
+    "Zerodha": {
+        "tier": "upper_mid",
+        "industry": "finance",
+        "salary_multiplier": 1.8,
+        "city_affinity": ["tier1"],
+    },
+    "CRED": {
+        "tier": "upper_mid",
+        "industry": "finance",
+        "salary_multiplier": 1.9,
+        "city_affinity": ["tier1"],
+    },
+    "Groww": {
+        "tier": "mid",
+        "industry": "finance",
+        "salary_multiplier": 1.4,
+        "city_affinity": ["tier1", "tier2"],
+    },
+    "Meesho": {
+        "tier": "mid",
+        "industry": "tech",
+        "salary_multiplier": 1.35,
+        "city_affinity": ["tier1", "tier2"],
+    },
+    "Zepto": {
+        "tier": "mid",
+        "industry": "tech",
+        "salary_multiplier": 1.25,
+        "city_affinity": ["tier1", "tier2"],
+    },
+    "PhonePe": {
+        "tier": "upper_mid",
+        "industry": "finance",
+        "salary_multiplier": 1.8,
+        "city_affinity": ["tier1", "tier2"],
     },
     "Adobe India": {
         "tier": "upper_mid",
@@ -543,6 +1318,12 @@ COMPANY_METADATA = {
         "industry": "finance",
         "salary_multiplier": 1.5,
         "city_affinity": ["tier1", "tier2"],
+    },
+    "Goldman Sachs": {
+        "tier": "elite",
+        "industry": "finance",
+        "salary_multiplier": 2.6,
+        "city_affinity": ["tier1"],
     },
     "ICICI Bank": {
         "tier": "upper_mid",
@@ -713,6 +1494,15 @@ COMPANY_METADATA = {
         "city_affinity": ["tier1", "tier2", "tier3"],
     },
 }
+
+for company_name, metadata in COMPANY_METADATA.items():
+    metadata.setdefault("remote_work_affinity", 0.35)
+    metadata.setdefault("work_life_balance", 0.45)
+    metadata.setdefault(
+        "prestige_score",
+        0.75 if metadata.get("tier") in {"elite", "premium"} else 0.55 if metadata.get("tier") in {"upper_mid", "upper_mid"} else 0.35 if metadata.get("tier") == "mid" else 0.25
+    )
+    metadata.setdefault("salary_distribution", {"sigma_adjustment": 0.15, "tail_probability": 0.08})
 
 
 # ── Canonical city → state mapping ──────────────────────────────

@@ -86,42 +86,130 @@ def _weighted_indexed_pick(items, weights):
     return random.choices(items, weights=weights, k=1)[0]
 
 
+COHORT_PRIOR_WEIGHTS = {
+    "metro_tech":           0.15,
+    "government":           0.14,
+    "sme_business":         0.16,
+    "regional_private":     0.18,
+    "nri_professional":     0.08,
+    "medical":             0.11,
+    "academia":            0.08,
+    "lower_middle_regional":0.10,
+}
+
+COHORT_TRAIT_MEANS = {
+    "metro_tech": {
+        "ses_score": 0.78,
+        "urbanity": 0.90,
+        "english_fluency": 0.82,
+        "traditionalism": 0.28,
+        "career_orientation": 0.82,
+        "tech_savviness": 0.88,
+        "activity_level": 0.68,
+    },
+    "government": {
+        "ses_score": 0.58,
+        "urbanity": 0.48,
+        "english_fluency": 0.55,
+        "traditionalism": 0.72,
+        "career_orientation": 0.62,
+        "tech_savviness": 0.32,
+        "activity_level": 0.46,
+    },
+    "sme_business": {
+        "ses_score": 0.54,
+        "urbanity": 0.46,
+        "english_fluency": 0.42,
+        "traditionalism": 0.58,
+        "career_orientation": 0.58,
+        "tech_savviness": 0.40,
+        "activity_level": 0.52,
+    },
+    "regional_private": {
+        "ses_score": 0.40,
+        "urbanity": 0.30,
+        "english_fluency": 0.34,
+        "traditionalism": 0.70,
+        "career_orientation": 0.42,
+        "tech_savviness": 0.28,
+        "activity_level": 0.40,
+    },
+    "nri_professional": {
+        "ses_score": 0.86,
+        "urbanity": 0.84,
+        "english_fluency": 0.90,
+        "traditionalism": 0.30,
+        "career_orientation": 0.88,
+        "tech_savviness": 0.75,
+        "activity_level": 0.66,
+    },
+    "medical": {
+        "ses_score": 0.72,
+        "urbanity": 0.64,
+        "english_fluency": 0.70,
+        "traditionalism": 0.42,
+        "career_orientation": 0.88,
+        "tech_savviness": 0.48,
+        "activity_level": 0.54,
+    },
+    "academia": {
+        "ses_score": 0.64,
+        "urbanity": 0.56,
+        "english_fluency": 0.74,
+        "traditionalism": 0.56,
+        "career_orientation": 0.70,
+        "tech_savviness": 0.54,
+        "activity_level": 0.46,
+    },
+    "lower_middle_regional": {
+        "ses_score": 0.28,
+        "urbanity": 0.22,
+        "english_fluency": 0.22,
+        "traditionalism": 0.80,
+        "career_orientation": 0.34,
+        "tech_savviness": 0.18,
+        "activity_level": 0.38,
+    },
+}
+
+
+def _sample_latent_cohort():
+    return _pick_weighted_dict(COHORT_PRIOR_WEIGHTS)
+
+
 def _generate_latent_traits():
     """
-    Generate hidden causal traits before visible fields.
+    Generate hidden causal traits and archetype cohorts before visible fields.
 
-    Independent field sampling creates synthetic artifacts: elite college,
-    weak language profile, low-skill job, and luxury behavior can accidentally
-    co-occur too often. Latent variables introduce realistic shared causes
-    while preserving noise and diversity. These traits are internal by default;
-    they condition downstream fields but are not exported unless debug mode is
-    explicitly requested.
+    This prevents the generator from collapsing into a single smooth population.
+    Archetypes create realistic overlap while preserving natural subpopulation
+    structure in education, income, employer type, migration, and behavior.
     """
-    ses = _pick_weighted_dict({
-        "low": 0.12,
-        "lower_middle": 0.26,
-        "middle": 0.34,
-        "upper_middle": 0.22,
-        "elite": 0.06,
-    })
-    ses_score = {
-        "low": 0.18,
-        "lower_middle": 0.35,
-        "middle": 0.52,
-        "upper_middle": 0.72,
-        "elite": 0.90,
-    }[ses]
+    cohort = _sample_latent_cohort()
+    means = COHORT_TRAIT_MEANS[cohort]
 
-    urbanity = _clamp(random.gauss(0.35 + 0.45 * ses_score, 0.18))
-    english_fluency = _clamp(random.gauss(0.20 + 0.45 * ses_score + 0.25 * urbanity, 0.16))
-    traditionalism = _clamp(random.gauss(0.70 - 0.25 * urbanity - 0.18 * english_fluency, 0.18))
-    career_orientation = _clamp(random.gauss(0.30 + 0.34 * ses_score + 0.28 * english_fluency, 0.18))
-    tech_savviness = _clamp(random.gauss(0.20 + 0.35 * urbanity + 0.25 * english_fluency, 0.18))
-    activity_level = _clamp(random.gauss(0.45 + 0.15 * urbanity - 0.10 * traditionalism, 0.20))
-    attractiveness_score = _clamp(random.gauss(0.50 + 0.08 * ses_score + 0.05 * activity_level, 0.18))
+    ses_score = _clamp(random.gauss(means["ses_score"], 0.08))
+    urbanity = _clamp(random.gauss(means["urbanity"], 0.16))
+    english_fluency = _clamp(random.gauss(0.22 + 0.45 * ses_score + 0.22 * urbanity, 0.14))
+    traditionalism = _clamp(random.gauss(means["traditionalism"] - 0.24 * urbanity - 0.16 * english_fluency, 0.16))
+    career_orientation = _clamp(random.gauss(means["career_orientation"] + 0.16 * ses_score + 0.18 * english_fluency, 0.16))
+    tech_savviness = _clamp(random.gauss(means["tech_savviness"] + 0.28 * urbanity + 0.18 * english_fluency, 0.16))
+    activity_level = _clamp(random.gauss(means["activity_level"] + 0.08 * urbanity - 0.08 * traditionalism, 0.16))
+    attractiveness_score = _clamp(random.gauss(0.48 + 0.07 * ses_score + 0.05 * activity_level, 0.16))
+
+    if ses_score < 0.22:
+        socioeconomic_tier = "low"
+    elif ses_score < 0.40:
+        socioeconomic_tier = "lower_middle"
+    elif ses_score < 0.60:
+        socioeconomic_tier = "middle"
+    elif ses_score < 0.78:
+        socioeconomic_tier = "upper_middle"
+    else:
+        socioeconomic_tier = "elite"
 
     return {
-        "socioeconomic_tier": ses,
+        "socioeconomic_tier": socioeconomic_tier,
         "ses_score": ses_score,
         "urbanity": urbanity,
         "english_fluency": english_fluency,
@@ -130,6 +218,7 @@ def _generate_latent_traits():
         "tech_savviness": tech_savviness,
         "activity_level": activity_level,
         "attractiveness_score": attractiveness_score,
+        "cohort": cohort,
     }
 
 
@@ -149,6 +238,14 @@ def _generate_geography(gender, latent_traits):
         0.05,
         0.38,
     )
+
+    if latent_traits["cohort"] == "nri_professional":
+        migration_probability = _clamp(migration_probability + 0.10, 0.12, 0.55)
+    elif latent_traits["cohort"] == "regional_private":
+        migration_probability = _clamp(migration_probability - 0.06, 0.03, 0.28)
+    elif latent_traits["cohort"] == "government":
+        migration_probability = _clamp(migration_probability + 0.02, 0.05, 0.42)
+
     demographics = generate_regional_demographics(
         gender,
         migration=True,
@@ -213,6 +310,7 @@ def _generate_education_profile(latent_traits, city):
     samples education level, field, college tier, and college name.
     """
     city_meta = CITY_METADATA.get(city, {"tier": "tier3", "education_hub": False})
+    cohort = latent_traits["cohort"]
     school_quality = _clamp(
         0.20 * latent_traits["ses_score"]
         + 0.22 * latent_traits["english_fluency"]
@@ -228,6 +326,21 @@ def _generate_education_profile(latent_traits, city):
     level_weights["Graduate"] *= 0.80 + 0.55 * school_quality
     level_weights["Post Graduate"] *= 0.65 + 1.10 * school_quality
     level_weights["PhD"] *= 0.30 + 0.90 * school_quality
+
+    if cohort == "metro_tech":
+        level_weights["Graduate"] *= 1.10
+        level_weights["Post Graduate"] *= 1.10
+    elif cohort == "medical":
+        level_weights["Post Graduate"] *= 1.12
+        level_weights["PhD"] *= 1.06
+    elif cohort == "academia":
+        level_weights["Graduate"] *= 1.08
+        level_weights["PhD"] *= 1.08
+    elif cohort == "lower_middle_regional":
+        level_weights["10th"] *= 1.22
+        level_weights["12th"] *= 1.18
+    elif cohort == "regional_private":
+        level_weights["12th"] *= 1.15
     education_level = _pick_weighted_dict(_normalize(level_weights))
 
     field_weights = {field: 1.0 for field in EDUCATION_FIELDS[education_level]}
@@ -246,6 +359,18 @@ def _generate_education_profile(latent_traits, city):
             base *= 1.10
         if education_level == "PhD" and field in {"Humanities", "Sciences", "Engineering", "Management"}:
             base *= 1.10
+
+        if cohort == "metro_tech" and field in {"Engineering", "M.Tech", "MCA", "Computer Science"}:
+            base *= 1.20
+        if cohort == "medical" and any(k in flat for k in ["medicine", "md", "pharmacy", "nursing"]):
+            base *= 1.35
+        if cohort == "academia" and field in {"Science", "Arts", "Humanities"}:
+            base *= 1.15
+        if cohort == "government" and field in {"Law", "Political Science", "Public Policy", "History"}:
+            base *= 1.18
+        if cohort == "nri_professional" and field in {"Management", "MBA", "Commerce", "Economics"}:
+            base *= 1.12
+
         field_weights[field] *= base
     education_field = _pick_weighted_dict(_normalize(field_weights))
 
@@ -263,6 +388,29 @@ def _generate_education_profile(latent_traits, city):
         else:
             category_weights[category] *= 1.05 - 0.15 * access_score
 
+    if cohort == "metro_tech":
+        for category in category_weights:
+            if "elite" in category or category in {"technical_pg", "top_universities"}:
+                category_weights[category] *= 1.18
+    if cohort == "medical":
+        for category in category_weights:
+            if "medical" in category or category in {"top_research", "technical_pg"}:
+                category_weights[category] *= 1.20
+    if cohort == "academia":
+        for category in category_weights:
+            if category in {"top_research", "good_universities", "premium"}:
+                category_weights[category] *= 1.16
+        if cohort == "regional_private":
+            if "regional_state" in category_weights:
+                category_weights["regional_state"] *= 1.18
+            if "generic" in category_weights:
+                category_weights["generic"] *= 1.12
+        if cohort == "lower_middle_regional":
+            if "generic" in category_weights:
+                category_weights["generic"] *= 1.24
+            if "regional_state" in category_weights:
+                category_weights["regional_state"] *= 1.14
+                
     category_choice = _pick_weighted_dict(_normalize(category_weights))
     colleges = COLLEGES[education_level][category_choice]
 
@@ -297,6 +445,7 @@ def _generate_education_profile(latent_traits, city):
         "college_prestige": college_tier,
         "school_quality": school_quality,
         "education_quality_score": _clamp(school_quality),
+        "cohort": cohort,
     }
 
 
@@ -306,6 +455,7 @@ def _generate_profession_profile(age, city, education_profile, latent_traits):
     prestige = education_profile["college_tier"]
     school_quality = education_profile.get("school_quality", 0.5)
     city_meta = CITY_METADATA.get(city, {"tier": "tier3", "tech_hub": False})
+    cohort = latent_traits["cohort"]
 
     profession_weights = {profession: 1.0 for profession in PROFESSIONS_BY_EDUCATION[education_level]}
     for profession in profession_weights:
@@ -334,6 +484,19 @@ def _generate_profession_profile(age, city, education_profile, latent_traits):
         if education_field == "Science" and any(k in p for k in ["research scientist", "professor", "government employee"]):
             profession_weights[profession] *= 1.20
 
+        if cohort == "metro_tech" and any(k in p for k in ["software", "data scientist", "product manager", "principal engineer"]):
+            profession_weights[profession] *= 1.20
+        if cohort == "government" and any(k in p for k in ["government", "ias", "ips", "railways", "police"]):
+            profession_weights[profession] *= 1.30
+        if cohort == "medical" and any(k in p for k in ["doctor", "nurse", "pharmacist"]):
+            profession_weights[profession] *= 1.22
+        if cohort == "academia" and any(k in p for k in ["professor", "research", "teacher"]):
+            profession_weights[profession] *= 1.18
+        if cohort == "regional_private" and any(k in p for k in ["shop owner", "sales executive", "delivery executive", "family business"]):
+            profession_weights[profession] *= 1.22
+        if cohort == "nri_professional" and any(k in p for k in ["consultant", "finance manager", "product manager", "data scientist"]):
+            profession_weights[profession] *= 1.18
+
         if prestige == "elite" and any(k in p for k in ["software", "product", "data", "research", "principal", "consultant"]):
             profession_weights[profession] *= 1.75
         elif prestige == "premium" and any(k in p for k in ["product", "consultant", "senior software", "finance manager"]):
@@ -344,7 +507,7 @@ def _generate_profession_profile(age, city, education_profile, latent_traits):
         if city_meta["tech_hub"] and any(k in p for k in ["software", "data scientist", "product manager", "principal engineer"]):
             profession_weights[profession] *= 1.15
         if city_meta["tier"] == "tier3" and any(k in p for k in ["shop owner", "driver", "sales executive", "delivery executive"]):
-            profession_weights[profession] *= 1.2
+            profession_weights[profession] *= 1.20
         if city_meta["tier"] == "tier1" and any(k in p for k in ["finance manager", "consultant", "product manager", "data scientist"]):
             profession_weights[profession] *= 1.15
 
@@ -491,13 +654,13 @@ def _generate_lifestyle_profile(name, age, gender, city, marital_status, educati
 
 def _generate_behavioral_profile(created_at, latent_traits, age, profession):
     timestamps = _generate_timestamps(created_at)
-    base_messages = 30 if latent_traits["tech_savviness"] > 0.65 else 22
+    base_messages = 28 if latent_traits["tech_savviness"] > 0.65 else 20
     activity_multiplier = 0.55 + latent_traits["activity_level"]
-    messages_sent = random.randint(0, max(3, int(base_messages * activity_multiplier)))
-    messages_received = int(messages_sent * random.uniform(0.3, 1.5))
-    match_requests = random.randint(0, max(2, int(15 * activity_multiplier)))
-    match_accepts = int(match_requests * random.uniform(0.1, 0.5))
-    unique_contacts = random.randint(1, min(20, messages_sent + 1))
+    messages_sent = max(1, int(np.random.poisson(max(2, base_messages * activity_multiplier))))
+    messages_received = int(max(1, messages_sent * random.uniform(0.28, 1.2)))
+    match_requests = max(0, int(np.random.poisson(max(1, 14 * activity_multiplier))))
+    match_accepts = int(match_requests * random.uniform(0.16, 0.48))
+    unique_contacts = min(max(1, int(messages_sent * random.uniform(0.25, 0.75))), messages_sent)
     device_type = _generate_device_type(age, profession, latent_traits)
     return {
         "timestamps": timestamps,
@@ -560,97 +723,113 @@ def _validate_profile_consistency(profile):
 
 def _generate_experience(age, education_profile, latent_traits):
     """
-    Simulate realistic work experience as the result of education delay,
-    career orientation, family orientation, and occasional gaps.
+    Simulate realistic work experience as the result of education timing,
+    graduation age, career orientation, and early career gaps.
 
-    PhD holders enter later and still can accumulate meaningful experience if
-    they remain career-oriented. Traditional or low-career-orientation profiles
-    are more likely to have delayed starts or interrupted early careers.
+    This prevents impossible things like 15 years experience for a 26-year-old
+    and ensures high-experience profiles still align with the visible age.
     """
     education_level = education_profile["education_level"]
-    min_work_age = {
-        "10th": 16,
+    graduation_age = {
+        "10th": 18,
         "12th": 18,
-        "Graduate": 22,
-        "Post Graduate": 24,
-        "PhD": 28,
+        "Graduate": random.randint(21, 23),
+        "Post Graduate": random.randint(24, 26),
+        "PhD": random.randint(28, 32),
     }[education_level]
 
-    base_delay = 0
+    gap = 0
     if education_level == "PhD":
-        base_delay += random.randint(1, 3)
+        gap += random.randint(0, 1)
     elif education_level == "Post Graduate":
-        base_delay += random.choice([0, 1, 1, 2])
+        gap += random.choice([0, 0, 1, 1, 2])
     elif education_level == "Graduate":
-        base_delay += random.choice([0, 0, 1, 1, 2])
+        gap += random.choice([0, 0, 1, 1, 2])
     else:
-        base_delay += random.choice([0, 1, 1, 2])
+        gap += random.choice([0, 1, 1, 2])
 
-    if latent_traits["career_orientation"] < 0.35:
-        base_delay += random.choice([0, 1, 2])
+    if latent_traits["career_orientation"] < 0.40:
+        gap += random.choice([0, 1, 1, 2])
     if latent_traits["traditionalism"] > 0.70 and random.random() < 0.22:
-        base_delay += random.randint(1, 2)
-    if latent_traits["ses_score"] > 0.78 and education_level in {"Graduate", "Post Graduate", "PhD"}:
-        base_delay = max(0, base_delay - 1)
+        gap += random.randint(1, 2)
+    if latent_traits["ses_score"] > 0.82:
+        gap = max(0, gap - 1)
 
-    max_possible = max(0, age - min_work_age)
-    expected_experience = max(0, max_possible - base_delay)
-    years_experience = int(round(_clamp(np.random.normal(expected_experience, 1.2), 0, max_possible)))
+    career_start_age = graduation_age + gap
+    max_experience = max(0, min(age - 18, age - graduation_age + 2))
+    nominal_experience = max(0, age - career_start_age)
+    years_experience = int(round(_clamp(np.random.normal(nominal_experience, 1.0), 0, max_experience)))
 
-    if years_experience > 2 and random.random() < 0.15:
-        years_experience = max(0, years_experience - random.randint(1, 2))
+    if random.random() < 0.12:
+        years_experience = max(0, years_experience - random.randint(0, 1))
+
+    if years_experience > max_experience:
+        years_experience = max_experience
 
     return years_experience
 
 
 def _realistic_income(profession, company_profile, education_profile, city, latent_traits, years_experience):
     """
-    Generate income as a skewed distribution that reflects profession,
-    company prestige, geography, experience, and latent SES.
+    Generate income as a bounded nonlinear function of prestige, experience,
+    company tier, geography, and latent socioeconomic structure.
     """
     base_info = INCOME_BASE_BY_PROFESSION.get(profession, INCOME_BASE_BY_PROFESSION["DEFAULT"])
     base_income = max(1.5, base_info["base"] + base_info["per_year_exp"] * years_experience)
 
-    company_multiplier = company_profile.get("salary_multiplier", 1.0)
-    company_tier = company_profile.get("tier", "local")
     education_quality = education_profile.get("school_quality", 0.5)
+    college_name = education_profile.get("college_name", "")
+    college_meta = COLLEGE_METADATA.get(college_name, {})
+    college_score = college_meta.get("prestige_score", 0.38)
+
+    company_multiplier = company_profile.get("salary_multiplier", 1.0)
+    company_score = company_profile.get("prestige_score", 0.45)
+    company_salary_normalized = _clamp((company_multiplier - 1.0) / 2.5)
+    combined_company_score = _clamp(0.62 * company_score + 0.38 * company_salary_normalized)
+
     city_meta = CITY_METADATA.get(city, {"tier": "tier3"})
+    city_score = 0.42 if city_meta["tier"] == "tier1" else 0.26 if city_meta["tier"] == "tier2" else 0.12
+    prestige_score = _clamp(0.40 * college_score + 0.50 * combined_company_score + 0.10 * city_score)
 
-    expected = base_income
-    expected *= 1.0 + 0.10 * (education_quality - 0.5)
-    expected *= company_multiplier
-    expected *= 1.0 + (0.14 if city_meta["tier"] == "tier1" else 0.08 if city_meta["tier"] == "tier2" else 0.0)
-    expected *= 0.92 + 0.20 * latent_traits["ses_score"] + 0.08 * latent_traits["career_orientation"]
+    prestige_bonus = 1.0 + 0.72 * np.tanh(prestige_score / 2.5)
+    experience_bonus = 1.0 + 0.025 * min(years_experience, 18)
+    latent_bonus = 0.92 + 0.18 * latent_traits["ses_score"] + 0.07 * latent_traits["career_orientation"]
 
-    if company_tier == "elite":
-        expected *= 1.22
-    elif company_tier == "premium":
-        expected *= 1.12
-    elif company_tier == "upper_mid":
-        expected *= 1.06
+    expected = base_income * prestige_bonus * experience_bonus * latent_bonus
+    expected *= 0.96 + 0.12 * (education_quality - 0.5)
+    expected *= 1.0 + (0.10 if city_meta["tier"] == "tier1" else 0.06 if city_meta["tier"] == "tier2" else 0.0)
 
-    sigma = 0.35 + 0.08 * (base_info["sigma"] / 3.0)
+    if company_profile.get("tier") == "elite":
+        expected *= 1.14
+    elif company_profile.get("tier") == "premium":
+        expected *= 1.08
+    elif company_profile.get("tier") == "upper_mid":
+        expected *= 1.04
+
+    sigma = 0.24 + 0.08 * (1.0 - combined_company_score)
+    sigma += 0.07 * min(1.0, years_experience / 12.0)
     if any(k in profession.lower() for k in ["software", "data scientist", "product", "principal"]):
-        sigma += 0.08
-    if company_tier == "self_employed":
-        sigma += 0.20
-        expected *= 1.08 + random.random() * 0.28
+        sigma += 0.04
+    if company_profile.get("tier") == "self_employed":
+        sigma += 0.10
+        expected *= 1.04
     if profession == "Government Employee":
-        sigma = min(sigma, 0.35)
-        expected *= 0.95
+        sigma = min(sigma, 0.34)
+        expected *= 0.94
 
     expected = max(1.5, expected)
     mu = np.log(max(0.8, expected)) - 0.5 * sigma * sigma
     income = float(np.random.lognormal(mu, sigma))
+    income = min(income, expected * 1.7)
 
-    if company_tier == "self_employed" and random.random() < 0.10:
-        income *= random.uniform(1.1, 1.8)
-    if random.random() < 0.04 and years_experience < 3:
-        income *= random.uniform(0.75, 0.95)
-    if random.random() < 0.02:
-        income *= random.uniform(1.05, 1.28)
+    if company_profile.get("tier") == "self_employed" and random.random() < 0.12:
+        income *= random.uniform(1.02, 1.20)
+    if random.random() < 0.05 and years_experience < 3:
+        income *= random.uniform(0.82, 0.96)
+    if random.random() < 0.03:
+        income *= random.uniform(1.03, 1.18)
     if profession == "Government Employee":
-        income = min(income, expected * 1.3)
+        income = min(income, expected * 1.25)
 
     return max(1.5, round(income, 1))
 
@@ -951,6 +1130,7 @@ def generate_legitimate_profile(created_at=None, include_debug_latents=False):
         "education_field":      education_field,
         "college_name":         college,
         "college_tier":         education_profile["college_tier"],
+        "latent_cohort":        education_profile["cohort"],
 
         # Profession
         "profession":           profession,

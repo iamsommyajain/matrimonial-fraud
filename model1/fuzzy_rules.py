@@ -230,11 +230,15 @@ def rule_salary_experience(features: dict) -> RuleResult:
     direction = "within expected range"
     if income > soft_max:
         overshoot_ratio = (income - soft_max) / soft_max
-        score = _linear_ramp(overshoot_ratio, 0.10, 1.50)
+        # Phase 1: Increased threshold from 0.10 to 0.40 to reduce false positives
+        # Only flag if income is 40%+ above expected range (not just 10%)
+        score = _linear_ramp(overshoot_ratio, 0.40, 1.50)
         direction = "above expected range"
     elif income < soft_min and cluster not in {"student", "business_entrepreneur"}:
         undershoot_ratio = (soft_min - income) / soft_min
-        score = _linear_ramp(undershoot_ratio, 0.15, 1.00) * 0.35
+        # Phase 1: Increased threshold from 0.15 to 0.40 to reduce false positives
+        # Only flag if income is 40%+ below expected range (not just 15%)
+        score = _linear_ramp(undershoot_ratio, 0.40, 1.00) * 0.35
         direction = "below expected range"
 
     return _rr("salary_experience", score, conf,
@@ -245,7 +249,7 @@ def rule_salary_experience(features: dict) -> RuleResult:
                    (income - soft_max) / soft_max if income > soft_max
                    else (soft_min - income) / soft_min if income < soft_min else 0.0
                ),
-               normalized_signal_value=score, threshold_used=0.10)
+               normalized_signal_value=score, threshold_used=0.40)
 
 
 def rule_salary_profession(features: dict) -> RuleResult:
@@ -585,7 +589,9 @@ def rule_interaction_sparse_inconsistency(features: dict) -> RuleResult:
     missing_critical = m.get("missing_critical_fields_count") or 0
     sparse_activity = (b.get("n_total_logins") in (None, 0, 1)) and (b.get("profile_edit_count") in (None, 0))
     raw = n_flags + 0.35 * missing_critical + (1.0 if sparse_activity else 0.0)
-    score = _linear_ramp(raw, 1.0, 4.0, ceiling=0.84)
+    # Phase 1: Lowered threshold from 1.0 to 0.5 to activate this high-quality rule more often
+    # This rule has 3.9x lift when it fires - we want to capture more instances
+    score = _linear_ramp(raw, 0.5, 3.0, ceiling=0.84)
     conf = 0.85
     return _rr("interaction_sparse_inconsistency", score, conf,
                "Sparse profile compounds with consistency problems" if score else "Sparse-inconsistency interaction not active",
@@ -593,7 +599,7 @@ def rule_interaction_sparse_inconsistency(features: dict) -> RuleResult:
                 "missing_critical_fields_count": missing_critical,
                 "sparse_activity": sparse_activity},
                raw_signal_value=raw, normalized_signal_value=score,
-               threshold_used=1.0)
+               threshold_used=0.5)
 
 
 RULE_REGISTRY = (

@@ -157,31 +157,27 @@ def inject_functional_fraud(profile):
     p = deepcopy(profile)
     signals = []
 
-    # Menu of possible contradictions — each is a (condition, mutation, label)
-    # We randomly pick 1-3 to apply so profiles aren't all identically broken.
-    possible = []
-
-    # ── Contradiction A: age too young for claimed experience
     def too_young_for_exp():
-        p["years_experience"] = p["age"] - 14  # mathematically impossible
+        p["years_experience"] = max(0, p["age"] - 14)
         signals.append("age_experience_impossible")
 
-    # ── Contradiction B: education-profession mismatch
     def edu_profession_mismatch():
         p["education_level"] = random.choice(["10th", "12th"])
         p["education_field"] = "General"
         p["college_name"] = "Local School"
+        p["college_tier"] = "local"
         p["profession"] = random.choice(["Doctor", "Senior Software Engineer",
                                           "Research Scientist", "Professor", "Lawyer"])
         signals.append("education_profession_mismatch")
 
-    # ── Contradiction C: income too high for company / role
     def inflated_income():
-        p["annual_income_lpa"] = random.uniform(60, 200)
-        p["company_name"] = f"{fake_company_name()} Solutions"  # fabricated
+        current_income = p.get("annual_income_lpa", 6.0)
+        target = min(current_income * random.uniform(1.08, 1.18), current_income + random.uniform(4.0, 12.0))
+        p["annual_income_lpa"] = round(max(current_income, target), 1)
+        p["company_name"] = f"{fake_company_name()} Solutions"
+        p["company_tier"] = random.choice(["premium", "upper_mid", "elite"])
         signals.append("income_company_mismatch")
 
-    # ── Contradiction D: suspicious email for high-status professional
     def professional_suspicious_email():
         p["email"] = generate_fraud_email(
             name=p.get("name", "user"),
@@ -193,25 +189,35 @@ def inject_functional_fraud(profile):
         _refresh_email_features(p)
         signals.append("email_identity_inconsistency")
 
-    # ── Contradiction E: login IPs from impossible geographies
     def impossible_geo():
-        # Replace all IPs with multi-country prefixes in one week
         n = len(p.get("login_timestamps", [])) or 10
         p["login_ip_list"] = _multi_city_ips(n)
         signals.append("impossible_geo_logins")
 
-    possible = [too_young_for_exp, edu_profession_mismatch,
-                inflated_income, professional_suspicious_email, impossible_geo]
+    def subtle_behavioral_shift():
+        if "messages_sent" in p:
+            sent = max(1, int(round(p["messages_sent"] * random.uniform(1.1, 1.28) + random.randint(0, 4))))
+            p["messages_sent"] = sent
+            p["messages_received"] = int(max(1, sent * random.uniform(0.28, 0.55)))
+            p["unique_contacts"] = min(sent, max(1, int(sent * random.uniform(0.22, 0.56))))
+        if "match_requests_sent" in p:
+            p["match_requests_sent"] = p["match_requests_sent"] + random.randint(1, 4)
+            p["match_accepts"] = int(max(0, min(p["match_requests_sent"], p.get("match_accepts", 0) - random.randint(0, 2))))
+        p["profile_edit_count"] = max(p.get("profile_edit_count", 0), random.randint(4, 10))
+        signals.append("behavioral_imbalance")
 
-    # Apply 1-3 contradictions
+    possible = [too_young_for_exp, edu_profession_mismatch,
+                inflated_income, professional_suspicious_email,
+                impossible_geo, subtle_behavioral_shift]
+
     n_inject = random.randint(1, 3)
     chosen = random.sample(possible, k=min(n_inject, len(possible)))
     for fn in chosen:
         fn()
 
-    p["is_fraud"]         = True
-    p["fraud_type"]       = "functional"
-    p["fraud_severity"]   = "high" if len(signals) >= 3 else "medium"
+    p["is_fraud"] = True
+    p["fraud_type"] = "functional"
+    p["fraud_severity"] = "high" if len(signals) >= 3 else "medium"
     p["injected_signals"] = signals
     return p
 
