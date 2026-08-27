@@ -789,18 +789,25 @@ def print_report(results_df: pd.DataFrame, threshold: float,
     rules = rule_analytics(results_df, threshold)
     cohorts = error_cohorts(results_df, threshold)
 
+    # print("\n" + "=" * 72)
+    # print("MODEL 1 - FUNCTIONAL ANOMALY SCORING | SCOPE-ALIGNED REPORT")
+    # print("=" * 72)
+    # print(f"Dataset size : {len(results_df):,} profiles")
+    # print(f"Fraud rate   : {y_true.mean() * 100:.1f}%")
+    # print(f"M1 target    : functional + multi fraud vs legitimate ({len(m1_df):,} rows)")
+    # print(f"Threshold    : {threshold:.2f}")
+    # print(f"Throughput   : {results_df.attrs.get('throughput_per_sec', 0):,.0f} profiles/sec")
+    # print(f"Latency      : mean {results_df['latency_ms'].mean():.3f} ms | p95 {results_df['latency_ms'].quantile(0.95):.3f} ms")
+    # print(f"Extraction   : mean {results_df['extraction_ms'].mean():.3f} ms")
+    # print(f"Scoring      : mean {results_df['scoring_ms'].mean():.3f} ms")
+    # print(f"Fusion       : active rules mean {results_df['number_of_active_rules'].mean():.2f} | damping mean {results_df['damping_ratio'].mean():.3f}")
+
     print("\n" + "=" * 72)
-    print("MODEL 1 - FUNCTIONAL ANOMALY SCORING | SCOPE-ALIGNED REPORT")
+    print("MODEL 1 — FUNCTIONAL CONSISTENCY REPORT")
     print("=" * 72)
-    print(f"Dataset size : {len(results_df):,} profiles")
-    print(f"Fraud rate   : {y_true.mean() * 100:.1f}%")
-    print(f"M1 target    : functional + multi fraud vs legitimate ({len(m1_df):,} rows)")
-    print(f"Threshold    : {threshold:.2f}")
-    print(f"Throughput   : {results_df.attrs.get('throughput_per_sec', 0):,.0f} profiles/sec")
-    print(f"Latency      : mean {results_df['latency_ms'].mean():.3f} ms | p95 {results_df['latency_ms'].quantile(0.95):.3f} ms")
-    print(f"Extraction   : mean {results_df['extraction_ms'].mean():.3f} ms")
-    print(f"Scoring      : mean {results_df['scoring_ms'].mean():.3f} ms")
-    print(f"Fusion       : active rules mean {results_df['number_of_active_rules'].mean():.2f} | damping mean {results_df['damping_ratio'].mean():.3f}")
+    print(f"Dataset : {len(results_df):,} profiles  |  Fraud rate: {results_df['is_fraud'].mean()*100:.1f}%  |  Threshold: {threshold}")
+    throughput = results_df.attrs.get("throughput_per_sec", 0)
+    print(f"Speed   : {throughput:,.0f} profiles/sec  |  Latency: {results_df['latency_ms'].mean():.2f}ms mean")
 
     print("\nPrimary KPI - Functional Fraud Detection")
     print(f"  Functional AUC-ROC : {auc_roc(functional_y, functional_scores):.4f}")
@@ -818,73 +825,78 @@ def print_report(results_df: pd.DataFrame, threshold: float,
     _print_threshold_row(f"Recall >= {recall_target:.2f}", functional_recs["recall_constrained"])
     _print_threshold_row("Review budget", functional_recs["fraud_queue_budget"])
 
-    print("\nFunctional Recall@K / Queue Quality")
-    print(target_top_k(results_df, "is_functional_fraud").to_string(index=False, formatters=_formatters()))
+    # REMOVED - redundant with Recall@K
+    # print("\nFunctional Recall@K / Queue Quality")
+    # print(target_top_k(results_df, "is_functional_fraud").to_string(index=False, formatters=_formatters()))
 
-    print("\nFunctional Tail-Risk Concentration")
-    print(target_tail_risk_concentration(results_df, "is_functional_fraud").to_string(index=False, formatters=_formatters()))
+    # print("\nFunctional Tail-Risk Concentration")
+    # print(target_tail_risk_concentration(results_df, "is_functional_fraud").to_string(index=False, formatters=_formatters()))
 
     print("\nFunctional Calibration Buckets")
     print(target_calibration_buckets(m1_df, "is_functional_fraud")
           [["bucket", "count", "avg_score", "target_rate", "avg_confidence"]]
           .to_string(index=False, formatters=_formatters()))
 
-    print("\nFunctional Score Histogram")
-    print(target_score_histogram(m1_df, "is_functional_fraud").to_string(index=False, formatters=_formatters()))
+    # REMOVED - redundant with Calibration Buckets
+    # print("\nFunctional Score Histogram")
+    # print(target_score_histogram(m1_df, "is_functional_fraud").to_string(index=False, formatters=_formatters()))
 
-    print(f"\nFunctional Jensen-Shannon Divergence : {target_js_divergence_scores(m1_df, 'is_functional_fraud'):.4f}")
+    # REMOVED - - internal statistical metric
+    # print(f"\nFunctional Jensen-Shannon Divergence : {target_js_divergence_scores(m1_df, 'is_functional_fraud'):.4f}")
 
-    print("\nFunctional Percentile Overlap")
-    for key, value in target_percentile_overlap(m1_df, "is_functional_fraud").items():
-        print(f"  {key:<42} {value:.4f}")
+    # print("\nFunctional Percentile Overlap")
+    # for key, value in target_percentile_overlap(m1_df, "is_functional_fraud").items():
+    #     print(f"  {key:<42} {value:.4f}")
 
-    print("\nFunctional Decile Lift (1 = highest-risk decile)")
-    print(target_decile_lift(results_df, "is_functional_fraud").head(10).to_string(index=False, formatters=_formatters()))
+    # REMOVED - covered by Recall@K
+    # print("\nFunctional Decile Lift (1 = highest-risk decile)")
+    # print(target_decile_lift(results_df, "is_functional_fraud").head(10).to_string(index=False, formatters=_formatters()))
 
     print("\nFraud-Type Attribution Matrix")
     print(fraud_type_attribution_matrix(results_df, threshold).to_string(index=False, formatters=_formatters()))
 
-    print("\nSecondary Context - Broad Fraud Label")
-    print(f"  AUC-ROC   : {auc_roc(y_true, y_scores):.4f}")
-    print(f"  AUC-PR    : {auc_pr(pr_df):.4f}")
-    print(f"  KS stat   : {ks_statistic(results_df):.4f}")
-    print(f"  Precision : {precision:.4f} ({tp} TP, {fp} FP)")
-    print(f"  Recall    : {recall:.4f} ({fn} missed fraud)")
-    print(f"  F1 Score  : {f1:.4f}")
-    print(f"  Confusion : TN={tn}, FP={fp}, FN={fn}, TP={tp}")
+    # REMOVED - broad label misleading for M1 (not designed to catch financial/ring fraud)
+    # print("\nSecondary Context - Broad Fraud Label")
+    # print(f"  AUC-ROC   : {auc_roc(y_true, y_scores):.4f}")
+    # print(f"  AUC-PR    : {auc_pr(pr_df):.4f}")
+    # print(f"  KS stat   : {ks_statistic(results_df):.4f}")
+    # print(f"  Precision : {precision:.4f} ({tp} TP, {fp} FP)")
+    # print(f"  Recall    : {recall:.4f} ({fn} missed fraud)")
+    # print(f"  F1 Score  : {f1:.4f}")
+    # print(f"  Confusion : TN={tn}, FP={fp}, FN={fn}, TP={tp}")
 
-    print("\nBroad-Label Threshold Recommendations")
-    _print_threshold_row("Best F1", recs["best_f1"])
-    _print_threshold_row(f"Precision >= {precision_target:.2f}", recs["precision_constrained"])
-    _print_threshold_row(f"Recall >= {recall_target:.2f}", recs["recall_constrained"])
-    _print_threshold_row("Fraud queue budget", recs["fraud_queue_budget"])
+    # print("\nBroad-Label Threshold Recommendations")
+    # _print_threshold_row("Best F1", recs["best_f1"])
+    # _print_threshold_row(f"Precision >= {precision_target:.2f}", recs["precision_constrained"])
+    # _print_threshold_row(f"Recall >= {recall_target:.2f}", recs["recall_constrained"])
+    # _print_threshold_row("Fraud queue budget", recs["fraud_queue_budget"])
 
-    print("\nBroad-Label Threshold Sweep")
-    print(pr_df[pr_df["threshold"].isin([0.10, 0.20, 0.30, 0.40, 0.50, 0.55, 0.60, 0.70, 0.80])]
-          [["threshold", "precision", "recall", "f1", "tp", "fp", "fn"]]
-          .to_string(index=False, formatters=_formatters()))
+    # print("\nBroad-Label Threshold Sweep")
+    # print(pr_df[pr_df["threshold"].isin([0.10, 0.20, 0.30, 0.40, 0.50, 0.55, 0.60, 0.70, 0.80])]
+    #       [["threshold", "precision", "recall", "f1", "tp", "fp", "fn"]]
+    #       .to_string(index=False, formatters=_formatters()))
 
-    print("\nCalibration Buckets")
-    print(calibration_buckets(results_df)[["bucket", "count", "avg_score", "fraud_rate", "avg_confidence"]]
-          .to_string(index=False, formatters=_formatters()))
+    # print("\nCalibration Buckets")
+    # print(calibration_buckets(results_df)[["bucket", "count", "avg_score", "fraud_rate", "avg_confidence"]]
+    #       .to_string(index=False, formatters=_formatters()))
 
-    print("\nDecile Lift (1 = highest-risk decile)")
-    print(decile_lift(results_df).head(10).to_string(index=False, formatters=_formatters()))
+    # print("\nDecile Lift (1 = highest-risk decile)")
+    # print(decile_lift(results_df).head(10).to_string(index=False, formatters=_formatters()))
 
-    print("\nScore Histogram")
-    print(score_histogram(results_df).to_string(index=False, formatters=_formatters()))
+    # print("\nScore Histogram")
+    # print(score_histogram(results_df).to_string(index=False, formatters=_formatters()))
 
-    print("\nTop-K Precision")
-    print(top_k_precision(results_df).to_string(index=False, formatters=_formatters()))
+    # print("\nTop-K Precision")
+    # print(top_k_precision(results_df).to_string(index=False, formatters=_formatters()))
 
-    print("\nTail-Risk Concentration")
-    print(tail_risk_concentration(results_df).to_string(index=False, formatters=_formatters()))
+    # print("\nTail-Risk Concentration")
+    # print(tail_risk_concentration(results_df).to_string(index=False, formatters=_formatters()))
 
-    print(f"\nJensen-Shannon Divergence : {js_divergence_scores(results_df):.4f}")
+    # print(f"\nJensen-Shannon Divergence : {js_divergence_scores(results_df):.4f}")
 
-    print("\nPercentile Overlap")
-    for key, value in percentile_overlap(results_df).items():
-        print(f"  {key:<36} {value:.4f}")
+    # print("\nPercentile Overlap")
+    # for key, value in percentile_overlap(results_df).items():
+    #     print(f"  {key:<36} {value:.4f}")
 
     print("\nRecall by Fraud Type")
     fraud_rows = []
@@ -897,33 +909,43 @@ def print_report(results_df: pd.DataFrame, threshold: float,
     print(pd.DataFrame(fraud_rows).sort_values("recall").to_string(index=False, formatters=_formatters()))
 
     print("\nRule Contribution Analytics")
-    print(rules["summary"].head(15).to_string(index=False, formatters=_formatters()))
+    cols = ["rule", "firing_rate", "fraud_firing_rate", "legit_firing_rate", "separation", "avg_effective_contribution", "fp_firing_rate"]
+    print(rules["summary"][cols].head(15).to_string(index=False, formatters=_formatters()))
+    # print(rules["summary"].head(15).to_string(index=False, formatters=_formatters()))
 
-    print("\nSignal Validity vs Functional Target")
-    print(rule_signal_validity(m1_df, "is_functional_fraud").head(20).to_string(index=False, formatters=_formatters()))
+    # REMOVED - duplicates Rule Contribution
+    # print("\nSignal Validity vs Functional Target")
+    # print(rule_signal_validity(m1_df, "is_functional_fraud").head(20).to_string(index=False, formatters=_formatters()))
 
-    print("\nInterpretability Quality")
-    for key, value in interpretability_quality(results_df).items():
-        print(f"  {key:<32} {value:.4f}")
+    # REMOVED - internal debugging metric
+    # print("\nInterpretability Quality")
+    # for key, value in interpretability_quality(results_df).items():
+    #     print(f"  {key:<32} {value:.4f}")
 
-    print("\nRule Abstention Report")
-    print(rules["abstentions"].head(20).to_string(index=False, formatters=_formatters()))
+    # REMOVED - debugging tool, not for regular runs
+    # print("\nRule Abstention Report")
+    # print(rules["abstentions"].head(20).to_string(index=False, formatters=_formatters()))
 
-    print("\nRule Pre-Threshold Distributions")
-    print(rules["distributions"].head(20).to_string(index=False, formatters=_formatters()))
+    # REMOVED - internal signal debugging
+    # print("\nRule Pre-Threshold Distributions")
+    # print(rules["distributions"].head(20).to_string(index=False, formatters=_formatters()))
 
-    print("\nSignal Collapse Detection")
-    print(_empty_or_table(rules["collapse"].head(20), formatters=_formatters()))
+    # REMOVED - covered by separation column in Rule Health
+    # print("\nSignal Collapse Detection")
+    # print(_empty_or_table(rules["collapse"].head(20), formatters=_formatters()))
 
-    print("\nInteraction Rule Analytics")
-    print(_empty_or_table(rules["interactions"].head(20), formatters=_formatters()))
+    # REMOVED - duplicates Rule Contribution
+    # print("\nInteraction Rule Analytics")
+    # print(_empty_or_table(rules["interactions"].head(20), formatters=_formatters()))
 
-    print("\nContribution Saturation")
-    for key, value in fusion_saturation_report(results_df).items():
-        print(f"  {key:<32} {value:.4f}")
+    # REMOVED - internal fusion plumbing
+    # print("\nContribution Saturation")
+    # for key, value in fusion_saturation_report(results_df).items():
+    #     print(f"  {key:<32} {value:.4f}")
 
-    print("\nRule Runtime Hotspots")
-    print(rule_runtime_hotspots(results_df).head(12).to_string(index=False, formatters=_formatters()))
+    # REMOVED - only for speed optimization
+    # print("\nRule Runtime Hotspots")
+    # print(rule_runtime_hotspots(results_df).head(12).to_string(index=False, formatters=_formatters()))
 
     print("\nFalse-Positive-Heavy Rules")
     print(_empty_or_table(rules["fp_heavy"].head(10), formatters=_formatters()))
@@ -931,8 +953,9 @@ def print_report(results_df: pd.DataFrame, threshold: float,
     print("\nLow-Information Rules")
     print(_empty_or_table(rules["low_info"].head(10), formatters=_formatters()))
 
-    print("\nRedundant/Correlated Rule Pairs")
-    print(_empty_or_table(rules["correlated"].head(10), formatters=_formatters()))
+    # REMOVED - always empty in current dataset
+    # print("\nRedundant/Correlated Rule Pairs")
+    # print(_empty_or_table(rules["correlated"].head(10), formatters=_formatters()))
 
     print("\nFalse Positive Flag Cohorts")
     print(_empty_or_table(cohorts["false_positive_flags"].head(10), formatters=_formatters()))
