@@ -179,15 +179,28 @@ RULE_EVIDENCE_WEIGHTS = {
 }
 
 
+# def expected_salary_range_by_experience(years_exp: int | float | None) -> tuple[float, float]:
+#     if years_exp is None:
+#         return (0.0, 500.0)
+#     if years_exp <= 1:
+#         return (2.0, 15.0)
+#     if years_exp <= 3:
+#         return (3.0, 20.0)
+#     if years_exp <= 5:
+#         return (6.0, 28.0)
+#     if years_exp <= 10:
+#         return (12.0, 45.0)
+#     return (18.0, 90.0)
+
 def expected_salary_range_by_experience(years_exp: int | float | None) -> tuple[float, float]:
     if years_exp is None:
         return (0.0, 500.0)
     if years_exp <= 1:
-        return (2.0, 15.0)
+        return (1.5, 22.0)    # fresher at IIT/product company can earn 18-20 LPA legitimately
     if years_exp <= 3:
-        return (3.0, 20.0)
+        return (2.5, 32.0)    # 2-3 years in tech easily reaches 25-30 LPA
     if years_exp <= 5:
-        return (6.0, 28.0)
+        return (4.0, 45.0)    # senior dev / lead at 5 years can be 40+ LPA
     if years_exp <= 10:
-        return (12.0, 45.0)
-    return (18.0, 90.0)
+        return (8.0, 70.0)    # manager / architect range
+    return (12.0, 120.0)      # 10+ years: CTO / VP / director range

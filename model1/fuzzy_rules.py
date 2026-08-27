@@ -128,7 +128,6 @@ def rule_age_experience(features: dict) -> RuleResult:
                raw_signal_value=shortfall, normalized_signal_value=score,
                threshold_used=0)
 
-
 def rule_age_education(features: dict) -> RuleResult:
     d = features.get("demographic", {})
     c = features.get("career", {})
@@ -160,7 +159,8 @@ def rule_education_profession(features: dict) -> RuleResult:
     cluster = c.get("profession_cluster") or "other"
     profession = c.get("profession_normalized")
     min_rank = CLUSTER_MIN_EDU_RANK.get(cluster)
-    conf = _available_confidence(edu_rank, profession) * (1.0 if min_rank else 0.55)
+    # conf = _available_confidence(edu_rank, profession) * (1.0 if min_rank else 0.55)
+    conf = _available_confidence(edu_rank, profession) * (0.90 if min_rank else 0.55)
     missing = _missing_fields({"education_rank": edu_rank, "profession": profession})
     if edu_rank is None or not profession:
         return _rr("education_profession", 0.0, conf, "Education or profession missing",
@@ -174,7 +174,10 @@ def rule_education_profession(features: dict) -> RuleResult:
                    raw_signal_value=0 if min_rank else None, threshold_used=min_rank)
 
     gap = min_rank - edu_rank
-    score = _linear_ramp(gap, 0.0, 2.0, ceiling=0.9)
+    # Lowered: start penalising at gap=0.5 (not 1.0) so a Graduate claiming a Post-Graduate-required
+    # role gets flagged, not just a 10th-pass claiming a doctor role
+    score = _linear_ramp(gap, 0.3, 1.8, ceiling=0.9)
+    # score = _linear_ramp(gap, 0.0, 2.0, ceiling=0.9)
     return _rr("education_profession", score, conf,
                f"{profession} usually requires higher education than {edu}",
                {"education_rank": edu_rank, "profession_cluster": cluster,
@@ -228,17 +231,28 @@ def rule_salary_experience(features: dict) -> RuleResult:
     soft_min, soft_max = expected_salary_range_by_experience(years_exp)
     score = 0.0
     direction = "within expected range"
+    # if income > soft_max:
+    #     overshoot_ratio = (income - soft_max) / soft_max
+    #     # Phase 1: Increased threshold from 0.10 to 0.40 to reduce false positives
+    #     # Only flag if income is 40%+ above expected range (not just 10%)
+    #     score = _linear_ramp(overshoot_ratio, 0.40, 1.50)
+    #     direction = "above expected range"
+    # elif income < soft_min and cluster not in {"student", "business_entrepreneur"}:
+    #     undershoot_ratio = (soft_min - income) / soft_min
+    #     # Phase 1: Increased threshold from 0.15 to 0.40 to reduce false positives
+    #     # Only flag if income is 40%+ below expected range (not just 15%)
+    #     score = _linear_ramp(undershoot_ratio, 0.40, 1.00) * 0.35
+    #     direction = "below expected range"
+
     if income > soft_max:
         overshoot_ratio = (income - soft_max) / soft_max
-        # Phase 1: Increased threshold from 0.10 to 0.40 to reduce false positives
-        # Only flag if income is 40%+ above expected range (not just 10%)
-        score = _linear_ramp(overshoot_ratio, 0.40, 1.50)
+        # Only penalise if income is 70%+ above range — catches extreme fabrication only
+        score = _linear_ramp(overshoot_ratio, 0.70, 2.00)
         direction = "above expected range"
     elif income < soft_min and cluster not in {"student", "business_entrepreneur"}:
         undershoot_ratio = (soft_min - income) / soft_min
-        # Phase 1: Increased threshold from 0.15 to 0.40 to reduce false positives
-        # Only flag if income is 40%+ below expected range (not just 15%)
-        score = _linear_ramp(undershoot_ratio, 0.40, 1.00) * 0.35
+        # Low-salary penalty stays soft — startup/NGO cases are legitimate
+        score = _linear_ramp(undershoot_ratio, 0.50, 1.20) * 0.25
         direction = "below expected range"
 
     return _rr("salary_experience", score, conf,
@@ -249,7 +263,7 @@ def rule_salary_experience(features: dict) -> RuleResult:
                    (income - soft_max) / soft_max if income > soft_max
                    else (soft_min - income) / soft_min if income < soft_min else 0.0
                ),
-               normalized_signal_value=score, threshold_used=0.40)
+               normalized_signal_value=score, threshold_used=0.70)
 
 
 def rule_salary_profession(features: dict) -> RuleResult:
@@ -484,13 +498,27 @@ def rule_interaction_salary_experience(features: dict) -> RuleResult:
                    "Income or experience missing for interaction",
                    {"income": income, "years_experience": years_exp}, 1.0 - conf,
                    missing_fields=missing, missingness_penalty=1.0 - conf)
+    # soft_min, soft_max = expected_salary_range_by_experience(years_exp)
+    # overshoot = (income - soft_max) / max(soft_max, 1.0)
+    # early_career = years_exp <= 3
+    # score = _linear_ramp(overshoot, 0.15, 1.2, ceiling=0.95) if early_career and overshoot > 0 else 0.0
+    # if cluster in {"business_entrepreneur"}:
+    #     score *= 0.55
+    #     conf *= 0.75
+
     soft_min, soft_max = expected_salary_range_by_experience(years_exp)
     overshoot = (income - soft_max) / max(soft_max, 1.0)
+    # Retune: only flag truly implausible cases
+    # years_exp=0-1 → only flag if income > 25 LPA (not just above soft_max)
+    # years_exp=2-3 → only flag if income > 35 LPA
     early_career = years_exp <= 3
-    score = _linear_ramp(overshoot, 0.15, 1.2, ceiling=0.95) if early_career and overshoot > 0 else 0.0
-    if cluster in {"business_entrepreneur"}:
-        score *= 0.55
+    income_floor = 25.0 if years_exp <= 1 else 35.0
+    truly_implausible = early_career and income >= income_floor and overshoot > 0
+    score = _linear_ramp(overshoot, 0.80, 2.50, ceiling=0.90) if truly_implausible else 0.0
+    if cluster in {"business_entrepreneur", "sales_marketing"}:
+        score *= 0.45
         conf *= 0.75
+
     return _rr("interaction_salary_experience", score, conf,
                "High salary compounds with low experience" if score else "Salary-experience interaction not active",
                {"income": income, "years_experience": years_exp,
@@ -600,6 +628,76 @@ def rule_interaction_sparse_inconsistency(features: dict) -> RuleResult:
                 "sparse_activity": sparse_activity},
                raw_signal_value=raw, normalized_signal_value=score,
                threshold_used=0.5)
+
+
+
+    """
+    Catches fraud_injector's 'impossible_geo_logins' signal:
+    logins from 5+ geographically distant IPs in a short window.
+
+    The injector creates IPs with 5-8 distinct /24 prefixes within
+    one week. We detect this via n_unique_ips relative to n_total_logins
+    and account_age_days.
+
+    Legitimate users: mostly same /24 prefix, 5% travel/VPN.
+    Fraud: 5-8 distinct prefixes from day 1.
+    """
+    b = features.get("behavioral", {})
+    n_unique_ips   = b.get("n_unique_ips")
+    n_total_logins = b.get("n_total_logins")
+    account_age    = b.get("account_age_days")
+    ip_diversity   = b.get("ip_diversity")
+
+    conf = _available_confidence(n_unique_ips, n_total_logins, account_age)
+    missing = _missing_fields({
+        "n_unique_ips": n_unique_ips,
+        "n_total_logins": n_total_logins,
+        "account_age_days": account_age,
+    })
+
+    if n_unique_ips is None or n_total_logins is None or account_age is None:
+        return _rr("impossible_geo_logins", 0.0, conf,
+                   "IP or login data missing",
+                   {"n_unique_ips": n_unique_ips, "n_total_logins": n_total_logins},
+                   1.0 - conf, missing_fields=missing,
+                   missingness_penalty=1.0 - conf)
+
+    if n_total_logins < 3:
+        return _rr("impossible_geo_logins", 0.0, conf,
+                   "Too few logins to assess geo pattern",
+                   {"n_unique_ips": n_unique_ips, "n_total_logins": n_total_logins},
+                   raw_signal_value=0, threshold_used=5)
+
+    # Core signal: high unique IPs relative to total logins,
+    # especially on a young account
+    # Legitimate travel: occasionally different IPs, but not 5+ distinct /24s immediately
+    score = 0.0
+    reason = "Login geo pattern is normal"
+
+    # Signal 1: 5+ unique IPs in first 14 days — strongly suspicious
+    if n_unique_ips >= 5 and account_age is not None and account_age <= 14:
+        raw = (n_unique_ips - 4) / 6.0   # 5 IPs → 0.17, 10 IPs → 1.0
+        score = max(score, _linear_ramp(raw, 0.0, 1.0, ceiling=0.85))
+        reason = f"{n_unique_ips} unique IPs in {account_age:.0f} days (impossible geo)"
+
+    # Signal 2: extremely high IP diversity ratio (>0.8) with enough logins
+    if ip_diversity is not None and ip_diversity > 0.80 and n_total_logins >= 5:
+        diversity_score = _linear_ramp(ip_diversity - 0.80, 0.0, 0.20, ceiling=0.70)
+        score = max(score, diversity_score)
+        if score > 0 and "impossible" not in reason:
+            reason = f"IP diversity {ip_diversity:.2f} is abnormally high"
+
+    # Signal 3: 8+ unique IPs regardless of account age — always suspicious
+    if n_unique_ips >= 8:
+        score = max(score, 0.75)
+        reason = f"{n_unique_ips} unique IPs — bot or shared account pattern"
+
+    return _rr("impossible_geo_logins", score, conf, reason,
+               {"n_unique_ips": n_unique_ips, "n_total_logins": n_total_logins,
+                "account_age_days": account_age, "ip_diversity": ip_diversity},
+               raw_signal_value=n_unique_ips,
+               normalized_signal_value=score,
+               threshold_used=5)
 
 
 RULE_REGISTRY = (
