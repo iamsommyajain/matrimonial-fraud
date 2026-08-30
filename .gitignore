@@ -1,2 +1,4 @@
 output/
 __pycache__/
+**/__pycache__/
+# model1/__pycache__/
