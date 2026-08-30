@@ -15,31 +15,31 @@ as independent evidence accumulates.
 from __future__ import annotations
 
 
-from config import (
+from dataset_generation.model1.config import (
     PAIR_FLAG_THRESHOLD,
     RISK_THRESHOLDS,
     RULE_WEIGHTS,
 )
 
-from m1_types import RuleResult, ScoreBreakdown, clamp01
+from dataset_generation.model1.m1_types import RuleResult, ScoreBreakdown, clamp01
 
-from rules.executor import (
+from dataset_generation.model1.rules.executor import (
     execute_rules,
     execute_rules_profiled,
 )
 
-from fuzzy_rules import RULE_REGISTRY
+from dataset_generation.model1.fuzzy_rules import RULE_REGISTRY
 
-from fusion.contribution_builder import (
+from dataset_generation.model1.fusion.contribution_builder import (
     build_rule_contributions,
 )
 
-from fusion.probabilistic_fusion import (
+from dataset_generation.model1.fusion.probabilistic_fusion import (
     fuse_contributions,
 )
 
 
-from analytics.uncertainty import (
+from dataset_generation.model1.analytics.uncertainty import (
     build_uncertainty_summary,
 )
 

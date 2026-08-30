@@ -16,8 +16,8 @@ Usage:
 
 import time
 
-from feature_extractor import extract_m1_features
-from scorer import compute_functional_risk_score_detailed
+from dataset_generation.model1.feature_extractor import extract_m1_features
+from dataset_generation.model1.scorer import compute_functional_risk_score_detailed
 
 
 def score_profile(profile: dict, include_profiling: bool = False) -> dict:

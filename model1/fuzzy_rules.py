@@ -12,7 +12,7 @@ never mutate shared state.
 
 from __future__ import annotations
 
-from config import (
+from dataset_generation.model1.config import (
     CLUSTER_INCOME_RANGE,
     CLUSTER_MIN_EDU_RANK,
     CRITICAL_FIELD_PRIORS,
@@ -26,7 +26,7 @@ from config import (
     RULE_WEIGHTS,
     expected_salary_range_by_experience,
 )
-from m1_types import RuleResult, RuleSpec, clamp01
+from dataset_generation.model1.m1_types import RuleResult, RuleSpec, clamp01
 
 
 def _linear_ramp(value: float, ok_below: float, max_penalty_at: float,
