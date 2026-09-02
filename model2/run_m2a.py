@@ -117,6 +117,5 @@ def main():
     print(f"Saved report to {os.path.join(args.output_dir, 'm2a_report.txt')}")
     print(f"Saved audit to {os.path.join(args.output_dir, 'text_audit.txt')}")
 
-
 if __name__ == "__main__":
     main()

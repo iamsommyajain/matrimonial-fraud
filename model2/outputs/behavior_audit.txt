@@ -1,0 +1,23 @@
+==============================================================================
+MODEL 2B BEHAVIOR AUDIT
+==============================================================================
+Total profiles: 50,000
+Profiles with behavioral records: 50,000
+Total behavioral events: 1,533,951
+Profiles with device data: 50,000
+Profiles with location data: 0
+Profiles with missing timestamps across event lists: 50,000
+
+Event-type distribution:
+  login_timestamps       total=1,199,270 profiles=50,000
+  edit_timestamps        total=135,033 profiles=50,000
+  photo_upload_dates     total=199,648 profiles=50,000
+  login_ip_list          total=0 profiles=0
+
+Behavior by fraud type:
+  legitimate               count=47,500 with_behavior=47,500 mean_events=30.51
+  coordinated_ring         count=500 with_behavior=500 mean_events=30.64
+  financial_scam           count=500 with_behavior=500 mean_events=30.37
+  functional               count=500 with_behavior=500 mean_events=30.28
+  multi                    count=500 with_behavior=500 mean_events=38.20
+  template_bio             count=500 with_behavior=500 mean_events=40.00

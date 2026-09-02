@@ -1,0 +1,13 @@
+metric,value
+total_profiles,50000.0
+missing_bio,0.0
+missing_hobbies,0.0
+missing_interests,0.0
+unique_bio_count,30519.0
+exact_duplicate_bio_rows,30120.0
+bio_length_mean,444.86716
+bio_length_median,439.0
+bio_length_p90,470.0
+combined_length_mean,667.24954
+combined_length_median,663.0
+combined_length_p90,720.0

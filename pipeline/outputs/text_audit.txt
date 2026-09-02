@@ -1,0 +1,38 @@
+==============================================================================
+MODEL 2A TEXT AUDIT
+==============================================================================
+Total profiles: 50,000
+Missing bio: 0 (0.00%)
+Missing hobbies: 0 (0.00%)
+Missing interests: 0 (0.00%)
+Unique normalized bio count: 30,519
+Exact duplicate bio rows: 30,120
+
+Most frequent bios:
+  [  100] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in delhi, i believe in maintaining strong b
+  [   78] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in hyderabad, i believe in maintaining stro
+  [   76] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in bangalore, i believe in maintaining stro
+  [   74] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in kolkata, i believe in maintaining strong
+  [   72] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in mumbai, i believe in maintaining strong 
+  [   59] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in ahmedabad, i believe in maintaining stro
+  [   56] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in pune, i believe in maintaining strong bo
+  [   39] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in chennai, i believe in maintaining strong
+  [   38] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in ludhiana, i believe in maintaining stron
+  [   37] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in lucknow, i believe in maintaining strong
+
+Bio length mean / median / p90: 444.87 / 439.00 / 470.00
+Combined length mean / median / p90: 667.25 / 663.00 / 720.00
+
+Duplicate frequency distribution (combined text):
+  group_size=50000 profile_count=1
+
+Exact duplicate rate for legitimate profiles: 0.00%
+Exact duplicate rate for template_bio profiles: 0.00%
+
+Exact duplicate rate by fraud type:
+  coordinated_ring         0.00% (500)
+  financial_scam           0.00% (500)
+  functional               0.00% (500)
+  legitimate               0.00% (47,500)
+  multi                    0.00% (500)
+  template_bio             0.00% (500)

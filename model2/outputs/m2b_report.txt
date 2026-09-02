@@ -1,0 +1,108 @@
+==============================================================================
+MODEL 2B - BEHAVIORAL ANOMALY DETECTION
+==============================================================================
+Dataset size: 50,000
+Target positives: 1,700
+Experiment: both
+Threshold used: 0.55
+Exploratory mode: False
+
+Primary Scope-Aligned Metrics
+  ROC-AUC   : 0.8950
+  PR-AUC    : 0.7422
+  KS        : 0.7447
+  Precision : 0.9579
+  Recall    : 0.5618
+  F1        : 0.7082
+  Confusion : TN=48258, FP=42, FN=745, TP=955
+  FPR       : 0.0009
+  FNR       : 0.4382
+
+Threshold Recommendations
+  Best F1 threshold: 0.47 (P=0.8246, R=0.6306, F1=0.7147)
+  Precision >= 0.80: 0.47 (P=0.8246, R=0.6306)
+  Recall >= 0.80: 0.25 (P=0.2163, R=0.8000)
+
+Recall@K
+ top_k  precision_at_k  targets_captured  recall_at_k  minimum_behavior_risk_score
+   100           1.000               100     0.058824                     0.828827
+   500           1.000               500     0.294118                     0.743483
+  1000           0.956               956     0.562353                     0.547044
+
+Tail-Risk Concentration
+ tail_pct  profiles_reviewed  targets_captured  precision   recall
+     0.01                500               500     1.0000 0.294118
+     0.02               1000               956     0.9560 0.562353
+     0.05               2500              1297     0.5188 0.762941
+     0.10               5000              1352     0.2704 0.795294
+
+Fraud-Type Attribution
+      fraud_type  count  mean_behavior_risk  median_behavior_risk  p90_behavior_risk  threshold_recall
+  financial_scam    500            0.759643              0.759566           0.807510             1.000
+           multi    500            0.559055              0.614353           0.892446             0.562
+    template_bio    500            0.463657              0.473278           0.663257             0.348
+coordinated_ring    500            0.211434              0.202500           0.310769             0.002
+      functional    500            0.156979              0.140662           0.260992             0.002
+
+Behavioral Characteristics of High-Risk Profiles
+                 feature  high_risk_mean   normal_mean          diff
+          events_per_day        1.038635      0.034652      1.003982
+           edits_per_day        0.145759      0.002882      0.142877
+         uploads_per_day        0.125404      0.004536      0.120868
+mean_inter_event_seconds   135499.443967 171144.075522 -35644.631555
+              burstiness        0.261078      0.042520      0.218558
+    night_activity_ratio        0.328581      0.333778     -0.005198
+      device_switch_rate        0.000000      0.000000      0.000000
+    location_switch_rate        0.954090      0.956490     -0.002400
+
+False Positive Analysis
+                          profile_id       fraud_type  behavior_risk  events_per_day  burstiness  night_activity_ratio  device_switch_rate  location_switch_rate
+58fa5d2f-c510-43e6-9c13-9653b65d7f2f coordinated_ring       0.574772        0.022513    0.194740              0.473684                 0.0              0.933333
+bb3d6e40-0396-4385-837e-0ec95b8915a5              NaN       0.553821        0.020872    0.225714              0.263158                 0.0              0.916667
+26c5e64a-ed8f-4662-9243-161a21880509              NaN       0.562599        0.018618    0.165311              0.400000                 0.0              0.909091
+eb7b4d29-6f39-4486-8af1-40410ce29d3e              NaN       0.562806        0.019330    0.027177              0.058824                 0.0              0.923077
+8fcc129f-25aa-4291-aea4-6d273159f395              NaN       0.572525        0.020305    0.293926              0.526316                 0.0              0.916667
+6151172f-79a3-4bf5-9e4f-8becb51828a6              NaN       0.568871        0.019190    0.128671              0.500000                 0.0              0.916667
+90238c31-9044-4a83-8a80-8ec0e88b438a              NaN       0.598338        0.015220    0.153207              0.538462                 0.0              0.888889
+357de2ca-28e1-423f-8458-878386f8fa14              NaN       0.593564        0.018092   -0.041937              0.533333                 0.0              0.900000
+e37eb6e7-a2aa-4abb-b4b5-d873aa4eb625              NaN       0.573653        0.017438    0.014036              0.533333                 0.0              0.909091
+bb4a0f52-621e-40ef-86ee-013a3d7222f1              NaN       0.571113        0.016350    0.212504              0.000000                 0.0              0.900000
+b11cba40-4ab5-4666-be1e-bdf6f8b299af              NaN       0.569625        0.019850    0.185355              0.263158                 0.0              0.923077
+81094f24-d2af-4e9b-b855-78647de5a3b4              NaN       0.553450        0.014568    0.033296              0.357143                 0.0              0.900000
+0786109e-8383-4ac3-82ae-bc5d968d580a              NaN       0.566727        0.016678   -0.125012              0.250000                 0.0              0.916667
+f8e00222-b0f6-4ece-9fcc-6f6f134c95cd              NaN       0.572252        0.017081    0.065510              0.400000                 0.0              0.875000
+23a1ae7d-4df2-4325-b5ee-c139f748ef46              NaN       0.582417        0.021989    0.263228              0.263158                 0.0              0.888889
+65666252-c058-4ce6-9bc4-d3cebc0a7cc2              NaN       0.595853        0.021399    0.066657              0.368421                 0.0              0.916667
+ca34e25d-260b-4151-b37a-00949e17dc55              NaN       0.599050        0.014077   -0.358442              0.000000                 0.0              0.900000
+ba8a2012-0020-49ae-be06-f852be3ca684              NaN       0.608594        0.018028    0.317683              0.062500                 0.0              0.900000
+60acf705-2489-4c6f-8dbe-53cc49856c56              NaN       0.569216        0.016424   -0.047610              0.071429                 0.0              0.900000
+1df48f94-8dd6-4316-9e01-6e9f37ada4b3              NaN       0.626076        0.013559    0.122471              0.666667                 0.0              0.888889
+
+False Negative Analysis
+                          profile_id   fraud_type  behavior_risk  events_per_day  burstiness  night_activity_ratio  device_switch_rate  location_switch_rate
+c900ee01-c4c0-4239-be40-7652e94cda8a template_bio       0.515507        0.062000    0.293268              0.298246                 0.0              0.962963
+80c971e1-c640-4672-a6ca-e527dfb1c572   functional       0.081467        0.032438   -0.058436              0.466667                 0.0              0.960000
+3eeb9d62-d96d-4c00-adbe-f4bb95e317cf template_bio       0.448214        0.062628    0.174305              0.200000                 0.0              0.968750
+c190fb35-f1a2-4dc9-9464-f6e50c9616e1 template_bio       0.450754        0.028854    0.548058              0.480000                 0.0              0.937500
+16a8d4f1-a79a-4ca5-bab7-a7b6f4acdd08 template_bio       0.518318        0.056089    0.334292              0.346154                 0.0              0.944444
+29f3ac2a-95f2-44dc-a52a-5bb325bd3e7b template_bio       0.352648        0.032151    0.548410              0.407407                 0.0              0.950000
+98cd1def-9fb8-494f-bae2-91c654bf95e6 template_bio       0.370499        0.023400   -0.049695              0.200000                 0.0              0.933333
+2adf1690-8383-459c-8298-ac700c254739   functional       0.067092        0.038667   -0.002192              0.314286                 0.0              0.966667
+ffe914a5-38ef-4e63-86c6-971ddb6b37a0 template_bio       0.439889        0.026296    0.592883              0.360000                 0.0              0.947368
+52e0d1c4-cb22-4170-8e09-34d2381f4877 template_bio       0.381348        0.029584    0.561955              0.285714                 0.0              0.965517
+a17978da-707f-4c0b-8e96-9a8f8fa03281   functional       0.078951        0.029210    0.001353              0.214286                 0.0              0.954545
+c5f4f30d-07f8-4fbb-bec3-13904b1a41de template_bio       0.393872        0.030117    0.617948              0.310345                 0.0              0.965517
+9f7a39e8-220f-4855-9ed4-844c3e1531ea template_bio       0.450889        0.057275    0.235719              0.196078                 0.0              0.956522
+115f5d96-4a17-4b1d-9463-cb604d9a9f34 template_bio       0.385900        0.024152    0.512649              0.333333                 0.0              0.964286
+75cc4fed-cc8c-4f39-97bc-171e14b1a87e template_bio       0.413937        0.041715    0.630097              0.411765                 0.0              0.962963
+a94c9868-f371-4b2c-80af-6e76f3254a22        multi       0.431056        0.038423    0.596811              0.388889                 0.0              0.965517
+d7a176c3-cfea-4f3c-9073-ed311301076a        multi       0.513731        0.078207    0.240783              0.406250                 0.0              0.966667
+f0fd87f1-cfa4-4449-b25d-e505f8cba36a   functional       0.209070        0.035949   -0.099996              0.470588                 0.0              0.967742
+f7362344-cb14-4925-960b-520d824742cc   functional       0.093334        0.041418    0.015957              0.400000                 0.0              0.962963
+32260c03-f4d1-4066-b423-2a0bf636baa9   functional       0.216360        0.043636    0.019211              0.648649                 0.0              0.967742
+
+Runtime
+  behavior_aggregation_time_sec 276.3834
+  feature_preprocess_time_sec  0.1242
+  scoring_time_sec             6.5100
+  total_time_sec               467.5725
