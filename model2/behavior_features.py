@@ -19,6 +19,16 @@ BEHAVIOR_SIGNAL_TARGETS = {
     "sudden_inactivity_post_reports",
 }
 
+# The current schema has one device_type value per profile, not device history.
+# Keep the derived columns in the exported features for auditability, but do
+# not pass constant device features to the anomaly detector.
+EXCLUDED_MODEL_FEATURES = frozenset({
+    "unique_devices",
+    "device_switch_count",
+    "device_switch_rate",
+    "dominant_device_ratio",
+})
+
 
 def _parse_list(value):
     if value is None or (isinstance(value, float) and np.isnan(value)):
@@ -180,12 +190,22 @@ def _is_behavior_target(row) -> bool:
     return False
 
 
-def preprocess_behavior_features(features: pd.DataFrame):
-    cols = [c for c in features.columns if c not in {"profile_id", "fraud_type", "is_fraud", "m2b_target"}]
-    X = features[cols].replace([np.inf, -np.inf], np.nan).fillna(0.0).astype(float)
-    skew_cols = [c for c in X.columns if any(key in c for key in ("count", "events", "messages", "requests", "uploads", "logins"))]
-    for col in skew_cols:
-        X[col] = np.log1p(np.maximum(0.0, X[col]))
+def preprocess_behavior_features(features: pd.DataFrame, fit_features: pd.DataFrame | None = None):
+    metadata_columns = {"profile_id", "fraud_type", "is_fraud", "m2b_target"}
+    cols = [
+        c for c in features.columns
+        if c not in metadata_columns and c not in EXCLUDED_MODEL_FEATURES
+    ]
+    def prepare(frame):
+        out = frame[cols].replace([np.inf, -np.inf], np.nan).fillna(0.0).astype(float)
+        skew_cols = [c for c in out.columns if any(key in c for key in ("count", "events", "messages", "requests", "uploads", "logins"))]
+        for col in skew_cols:
+            out[col] = np.log1p(np.maximum(0.0, out[col]))
+        return out
+
+    fit_X = prepare(features if fit_features is None else fit_features)
+    X = prepare(features)
     scaler = StandardScaler()
-    Xs = scaler.fit_transform(X)
+    scaler.fit(fit_X)
+    Xs = scaler.transform(X)
     return Xs, scaler, cols

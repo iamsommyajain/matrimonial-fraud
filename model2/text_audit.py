@@ -35,15 +35,21 @@ def normalize_text(value: object) -> str:
     return text.strip()
 
 
-def build_combined_text(df: pd.DataFrame) -> pd.Series:
+def build_combined_text(df: pd.DataFrame, fields: Iterable[str] | None = None) -> pd.Series:
+    fields = tuple(TEXT_COLUMNS if fields is None else fields)
     parts = []
-    for col in TEXT_COLUMNS:
+    for col in fields:
         source = col if col in df.columns else next((alias for alias in ALIASES[col] if alias in df.columns), None)
         if source is None:
             parts.append(pd.Series([""] * len(df), index=df.index))
         else:
             parts.append(df[source].fillna("").map(normalize_text))
-    return (parts[0] + " " + parts[1] + " " + parts[2]).str.replace(r"\s+", " ", regex=True).str.strip()
+    if not parts:
+        return pd.Series([""] * len(df), index=df.index)
+    combined = parts[0]
+    for part in parts[1:]:
+        combined = combined + " " + part
+    return combined.str.replace(r"\s+", " ", regex=True).str.strip()
 
 
 def resolve_text_source(df: pd.DataFrame, field: str) -> str | None:

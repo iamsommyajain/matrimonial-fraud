@@ -104,7 +104,7 @@ def _behavior_characteristics(df, target_col, threshold):
     normal = df[df["behavior_risk"] < threshold]
     cols = [
         "events_per_day", "edits_per_day", "uploads_per_day", "mean_inter_event_seconds",
-        "burstiness", "night_activity_ratio", "device_switch_rate", "location_switch_rate",
+        "burstiness", "night_activity_ratio", "location_switch_rate",
     ]
     rows = []
     for col in cols:
@@ -126,25 +126,36 @@ def _error_cases(df, target_col, threshold):
     return fp, fn
 
 
-def build_report(df: pd.DataFrame, threshold: float, output_dir: str, runtime: dict[str, float], experiment: str, exploratory: bool) -> str:
-    y = df["m2b_target"].astype(int).to_numpy()
-    scores = df["behavior_risk"].to_numpy()
+def build_report(
+    df: pd.DataFrame,
+    threshold: float,
+    output_dir: str,
+    runtime: dict[str, float],
+    experiment: str,
+    exploratory: bool,
+    evaluation_df: pd.DataFrame | None = None,
+    evaluation_scope: str = "full_dataset",
+) -> str:
+    evaluated = evaluation_df if evaluation_df is not None else df
+    y = evaluated["m2b_target"].astype(int).to_numpy()
+    scores = evaluated["behavior_risk"].to_numpy()
     auc_roc = _safe_auc_roc(y, scores)
     auc_pr = float(average_precision_score(y, scores)) if len(np.unique(y)) > 1 else 0.0
     ks = _ks(y, scores)
     metrics = _binary_metrics(y, scores, threshold)
-    sweep, best, p80, r80 = _sweep_thresholds(df, "m2b_target")
-    topk = _top_k(df, "m2b_target")
-    tail = _tail(df, "m2b_target")
-    attr = _fraud_attribution(df, threshold)
-    behavior_chars = _behavior_characteristics(df, "m2b_target", threshold)
-    fp, fn = _error_cases(df, "m2b_target", threshold)
+    sweep, best, p80, r80 = _sweep_thresholds(evaluated, "m2b_target")
+    topk = _top_k(evaluated, "m2b_target")
+    tail = _tail(evaluated, "m2b_target")
+    attr = _fraud_attribution(evaluated, threshold)
+    behavior_chars = _behavior_characteristics(evaluated, "m2b_target", threshold)
+    fp, fn = _error_cases(evaluated, "m2b_target", threshold)
 
     lines = [
         "=" * 78,
         "MODEL 2B - BEHAVIORAL ANOMALY DETECTION",
         "=" * 78,
         f"Dataset size: {len(df):,}",
+        f"Evaluation scope: {evaluation_scope} ({len(evaluated):,} profiles)",
         f"Target positives: {int(y.sum()):,}",
         f"Experiment: {experiment}",
         f"Threshold used: {threshold:.2f}",
@@ -179,10 +190,10 @@ def build_report(df: pd.DataFrame, threshold: float, output_dir: str, runtime: d
         behavior_chars.to_string(index=False),
         "",
         "False Positive Analysis",
-        fp[["profile_id", "fraud_type", "behavior_risk", "events_per_day", "burstiness", "night_activity_ratio", "device_switch_rate", "location_switch_rate"]].head(20).to_string(index=False) if not fp.empty else "  none",
+        fp[["profile_id", "fraud_type", "behavior_risk", "events_per_day", "burstiness", "night_activity_ratio", "location_switch_rate"]].head(20).to_string(index=False) if not fp.empty else "  none",
         "",
         "False Negative Analysis",
-        fn[["profile_id", "fraud_type", "behavior_risk", "events_per_day", "burstiness", "night_activity_ratio", "device_switch_rate", "location_switch_rate"]].head(20).to_string(index=False) if not fn.empty else "  none",
+        fn[["profile_id", "fraud_type", "behavior_risk", "events_per_day", "burstiness", "night_activity_ratio", "location_switch_rate"]].head(20).to_string(index=False) if not fn.empty else "  none",
         "",
         "Runtime",
     ]
@@ -194,4 +205,3 @@ def build_report(df: pd.DataFrame, threshold: float, output_dir: str, runtime: d
     with open(os.path.join(output_dir, "m2b_report.txt"), "w", encoding="utf-8") as f:
         f.write(report)
     return report
-

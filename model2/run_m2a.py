@@ -36,6 +36,7 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n_neighbors", type=int, default=10)
     parser.add_argument("--max_features", type=int, default=20000)
+    parser.add_argument("--text_fields", type=str, default="bio", help="Comma-separated fields: bio,hobbies,interests")
     args = parser.parse_args()
 
     np.random.seed(args.seed)
@@ -47,6 +48,8 @@ def main():
     print(f"Seed       : {args.seed}", flush=True)
     print(f"Neighbors  : {args.n_neighbors}", flush=True)
     print(f"Max feats  : {args.max_features}", flush=True)
+    text_fields = tuple(field.strip() for field in args.text_fields.split(",") if field.strip())
+    print(f"Text fields: {', '.join(text_fields)}", flush=True)
 
     print("Loading dataset and validating schema...", flush=True)
     full_df = load_and_validate_profiles(args.input)
@@ -61,17 +64,24 @@ def main():
 
     print("Fitting TF-IDF vectorizer...", flush=True)
     fit_start = time.perf_counter()
-    vectorizer, _ = fit_tfidf_vectorizer(train_df, max_features=args.max_features, seed=args.seed)
+    vectorizer, train_tfidf_matrix = fit_tfidf_vectorizer(train_df, max_features=args.max_features, seed=args.seed, text_fields=text_fields)
     tfidf_fit_time = time.perf_counter() - fit_start
     save_vectorizer(vectorizer, args.output_dir)
 
     print("Transforming text into TF-IDF matrix...", flush=True)
     transform_start = time.perf_counter()
-    tfidf_matrix = transform_text(full_df, vectorizer)
+    tfidf_matrix = transform_text(full_df, vectorizer, text_fields=text_fields)
     tfidf_transform_time = time.perf_counter() - transform_start
 
     print("Computing nearest-neighbor text similarities...", flush=True)
-    scores_artifacts = compute_text_anomaly_scores(full_df, tfidf_matrix, n_neighbors=args.n_neighbors)
+    scores_artifacts = compute_text_anomaly_scores(
+        full_df,
+        tfidf_matrix,
+        n_neighbors=args.n_neighbors,
+        reference_df=train_df,
+        reference_matrix=train_tfidf_matrix,
+        text_fields=text_fields,
+    )
     scores_df = scores_artifacts.scores
     scores_df["m2a_target"] = full_df["m2a_target"].values
     scores_df["tfidf_fit_time_sec"] = tfidf_fit_time
@@ -110,8 +120,21 @@ def main():
     else:
         print("WARNING: no validation split found; using threshold 0.50 as exploratory fallback.")
 
+    evaluation_df = scores_df
+    evaluation_scope = "full_dataset"
+    if artifacts.test_df is not None and len(artifacts.test_df):
+        test_ids = set(artifacts.test_df["profile_id"])
+        evaluation_df = scores_df[scores_df["profile_id"].isin(test_ids)].copy()
+        evaluation_scope = "temporal_test"
+        scores_df["evaluation_scope"] = scores_df["profile_id"].isin(test_ids).map(
+            {True: "temporal_test", False: "train_or_validation_or_reference"}
+        )
+    else:
+        scores_df["evaluation_scope"] = "full_dataset"
+    scores_df.to_csv(scores_path, index=False)
+
     print("Building report...", flush=True)
-    report = build_report(scores_df, threshold, args.output_dir, {**scores_artifacts.runtime, "tfidf_fit_time_sec": tfidf_fit_time, "tfidf_transform_time_sec": tfidf_transform_time}, exploratory=artifacts.val_df is None)
+    report = build_report(scores_df, threshold, args.output_dir, {**scores_artifacts.runtime, "tfidf_fit_time_sec": tfidf_fit_time, "tfidf_transform_time_sec": tfidf_transform_time}, exploratory=artifacts.val_df is None, evaluation_df=evaluation_df, evaluation_scope=evaluation_scope)
     print(report)
     print(f"Saved scores to {scores_path}")
     print(f"Saved report to {os.path.join(args.output_dir, 'm2a_report.txt')}")

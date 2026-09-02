@@ -9,6 +9,7 @@ from typing import Iterable
 
 import numpy as np
 import pandas as pd
+from sklearn.metrics import average_precision_score, confusion_matrix, roc_auc_score
 
 import sys
 
@@ -20,7 +21,7 @@ from dataset_generation.model1.model1 import score_profile
 from dataset_generation.model2.run_m2a import _target_labels
 from dataset_generation.model2.text_audit import load_and_validate_profiles, save_audit
 from dataset_generation.model2.text_anomaly import compute_text_anomaly_scores
-from dataset_generation.model2.text_features import fit_tfidf_vectorizer, save_vectorizer, transform_text
+from dataset_generation.model2.text_features import fit_tfidf_vectorizer, load_split_or_full, save_vectorizer, transform_text
 
 
 def _truthy(value) -> bool:
@@ -48,11 +49,13 @@ def run_m1(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def run_m2a(df: pd.DataFrame, output_dir: str, max_features: int, n_neighbors: int, seed: int) -> tuple[pd.DataFrame, dict]:
+def run_m2a(df: pd.DataFrame, output_dir: str, max_features: int, n_neighbors: int, seed: int, train_df: pd.DataFrame | None = None) -> tuple[pd.DataFrame, dict]:
     df = df.copy()
     df["m2a_target"] = _target_labels(df)
+    train_df = df if train_df is None else train_df.copy()
+    train_df["m2a_target"] = _target_labels(train_df)
     fit_start = time.perf_counter()
-    vectorizer, _ = fit_tfidf_vectorizer(df, max_features=max_features, seed=seed)
+    vectorizer, train_matrix = fit_tfidf_vectorizer(train_df, max_features=max_features, seed=seed)
     tfidf_fit_time = time.perf_counter() - fit_start
     save_vectorizer(vectorizer, output_dir)
 
@@ -60,7 +63,7 @@ def run_m2a(df: pd.DataFrame, output_dir: str, max_features: int, n_neighbors: i
     tfidf_matrix = transform_text(df, vectorizer)
     tfidf_transform_time = time.perf_counter() - transform_start
 
-    scored = compute_text_anomaly_scores(df, tfidf_matrix, n_neighbors=n_neighbors)
+    scored = compute_text_anomaly_scores(df, tfidf_matrix, n_neighbors=n_neighbors, reference_df=train_df, reference_matrix=train_matrix)
     m2a_df = scored.scores.copy()
     m2a_df["m2a_target"] = df["m2a_target"].values
     runtime = {
@@ -84,13 +87,15 @@ def fuse_scores(df: pd.DataFrame, model_score_columns: Iterable[str]) -> pd.Data
     return out
 
 
-def build_combined_report(df: pd.DataFrame, output_dir: str, runtime: dict, score_columns: list[str]) -> str:
+def build_combined_report(df: pd.DataFrame, output_dir: str, runtime: dict, score_columns: list[str], evaluation_df: pd.DataFrame | None = None, threshold: float | None = None) -> str:
+    evaluated = df if evaluation_df is None else evaluation_df
     lines = [
         "=" * 78,
         "COMBINED MULTI-MODEL FRAUD REPORT",
         "=" * 78,
         f"Dataset size: {len(df):,}",
         f"Models fused : {', '.join(score_columns)}",
+        f"Evaluation scope: temporal_test when split files are available",
         "",
         "Score Summary",
     ]
@@ -99,6 +104,24 @@ def build_combined_report(df: pd.DataFrame, output_dir: str, runtime: dict, scor
             lines.append(
                 f"  {col:<16} mean={df[col].mean():.4f} p90={df[col].quantile(0.90):.4f} max={df[col].max():.4f}"
             )
+    lines += [
+        "",
+        "Evaluation",
+    ]
+    if threshold is not None and not evaluated.empty:
+        y = evaluated["is_fraud"].astype(int).to_numpy()
+        s = evaluated["combined_risk"].to_numpy()
+        pred = (s >= threshold).astype(int)
+        tn, fp, fn, tp = confusion_matrix(y, pred, labels=[0, 1]).ravel()
+        lines += [
+            f"  Test profiles: {len(evaluated):,}",
+            f"  Threshold selected on validation: {threshold:.2f}",
+            f"  ROC-AUC: {roc_auc_score(y, s):.4f}",
+            f"  PR-AUC: {average_precision_score(y, s):.4f}",
+            f"  Confusion: TN={tn}, FP={fp}, FN={fn}, TP={tp}",
+        ]
+    else:
+        lines.append("  No temporal test evaluation was available.")
     lines += [
         "",
         "Operational Notes",
@@ -133,11 +156,12 @@ def main() -> None:
     print(f"Output dir : {args.output_dir}", flush=True)
 
     df = load_and_validate_profiles(args.input)
+    split_artifacts = load_split_or_full(args.input)
     runtime = {}
     if "m2a" in {m.strip().lower() for m in args.models.split(",") if m.strip()}:
         print("Running M2-A...", flush=True)
         save_audit(df, args.output_dir)
-        m2a_df, m2a_runtime = run_m2a(df, args.output_dir, args.max_features, args.n_neighbors, args.seed)
+        m2a_df, m2a_runtime = run_m2a(df, args.output_dir, args.max_features, args.n_neighbors, args.seed, train_df=split_artifacts.train_df)
         runtime.update({f"m2a_{k}": v for k, v in m2a_runtime.items()})
     else:
         m2a_df = pd.DataFrame({"profile_id": df["profile_id"], "m2a_score": 0.0})
@@ -154,10 +178,36 @@ def main() -> None:
     combined = fuse_scores(combined, ["m1_score", "text_risk"])
     combined["combined_rank"] = combined["combined_risk"].rank(method="first", ascending=False)
 
+    evaluation_df = combined
+    fusion_threshold = None
+    if split_artifacts.val_df is not None and split_artifacts.test_df is not None:
+        val_ids = set(split_artifacts.val_df["profile_id"])
+        test_ids = set(split_artifacts.test_df["profile_id"])
+        val = combined[combined["profile_id"].isin(val_ids)]
+        evaluation_df = combined[combined["profile_id"].isin(test_ids)].copy()
+        if not val.empty and not evaluation_df.empty:
+            candidates = []
+            for threshold in np.linspace(0.0, 1.0, 101):
+                pred = (val["combined_risk"].to_numpy() >= threshold).astype(int)
+                y = val["is_fraud"].astype(int).to_numpy()
+                tp = ((y == 1) & (pred == 1)).sum()
+                fp = ((y == 0) & (pred == 1)).sum()
+                fn = ((y == 1) & (pred == 0)).sum()
+                p = tp / (tp + fp) if tp + fp else 0.0
+                r = tp / (tp + fn) if tp + fn else 0.0
+                f1 = 2 * p * r / (p + r) if p + r else 0.0
+                candidates.append((f1, r, p, threshold))
+            fusion_threshold = max(candidates)[3]
+            combined["evaluation_scope"] = combined["profile_id"].isin(test_ids).map({True: "temporal_test", False: "train_or_validation_or_reference"})
+        else:
+            combined["evaluation_scope"] = "full_dataset"
+    else:
+        combined["evaluation_scope"] = "full_dataset"
+
     combined_path = os.path.join(args.output_dir, "combined_scores.csv")
     combined.to_csv(combined_path, index=False)
 
-    report = build_combined_report(combined, args.output_dir, runtime, ["m1_score", "text_risk"])
+    report = build_combined_report(combined, args.output_dir, runtime, ["m1_score", "text_risk"], evaluation_df=evaluation_df, threshold=fusion_threshold)
     print(report)
     print(f"Saved combined scores to {combined_path}")
     print(f"Saved combined report to {os.path.join(args.output_dir, 'combined_report.txt')}")

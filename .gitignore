@@ -1,4 +1,8 @@
 output/
+**/outputs/
+**/*.csv
+**/*.txt
 __pycache__/
 **/__pycache__/
-# model1/__pycache__/
+model1/__pycache__/
+model2/outputs/

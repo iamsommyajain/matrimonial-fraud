@@ -19,7 +19,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.dirname(__file__))
+# Support direct execution from dataset_generation/ as well as package imports.
+MODEL1_DIR = os.path.dirname(__file__)
+REPO_ROOT = os.path.dirname(os.path.dirname(MODEL1_DIR))
+sys.path.insert(0, REPO_ROOT)
+sys.path.insert(0, MODEL1_DIR)
 from model1 import score_profile
 
 
@@ -1067,6 +1071,33 @@ def main() -> None:
 
     profiles = load_profiles(args.dataset, limit=args.limit)
     results_df = run_scoring(profiles)
+
+    # M1 is deterministic, so it has no fit stage. When generated temporal
+    # splits are available, select its threshold on validation and report only
+    # the future test split as final performance.
+    dataset_dir = os.path.dirname(os.path.abspath(args.dataset))
+    split_dir = os.path.join(dataset_dir, "splits")
+    val_path = os.path.join(split_dir, "val.csv")
+    test_path = os.path.join(split_dir, "test.csv")
+    evaluation_scope = "full_dataset"
+    if os.path.exists(val_path) and os.path.exists(test_path):
+        val_ids = set(pd.read_csv(val_path)["profile_id"])
+        test_ids = set(pd.read_csv(test_path)["profile_id"])
+        val_results = results_df[results_df["profile_id"].isin(val_ids)]
+        test_results = results_df[results_df["profile_id"].isin(test_ids)]
+        if not val_results.empty and not test_results.empty:
+            val_curve = pr_curve(val_results["is_functional_fraud"].astype(int), val_results["functional_risk_score"])
+            args.threshold = float(
+                val_curve.sort_values(["f1", "recall", "precision"], ascending=False).iloc[0]["threshold"]
+            )
+            results_df = test_results
+            evaluation_scope = "temporal_test"
+            print(
+                f"Temporal evaluation: threshold selected on validation ({args.threshold:.2f}); "
+                f"final metrics on test ({len(results_df):,} profiles)."
+            )
+    if evaluation_scope == "full_dataset":
+        print("WARNING: temporal split files not found; metrics are descriptive full-dataset analysis.")
     print_report(
         results_df,
         args.threshold,

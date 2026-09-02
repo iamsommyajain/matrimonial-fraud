@@ -1,7 +1,0 @@
-fraud_type,count,profiles_with_behavior,mean_events,mean_logins,mean_edits,mean_uploads
-coordinated_ring,500,500,30.636,24.018,2.52,4.098
-financial_scam,500,500,30.368,23.938,2.448,3.982
-functional,500,500,30.282,23.822,2.476,3.984
-legitimate,47500,47500,30.50962105263158,24.008147368421053,2.498273684210526,4.0032
-multi,500,500,38.198,23.294,11.316,3.588
-template_bio,500,500,40.004,22.694,13.97,3.34

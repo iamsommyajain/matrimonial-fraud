@@ -44,7 +44,7 @@ def load_split_or_full(input_csv: str) -> TextFeatureArtifacts:
     return TextFeatureArtifacts(TfidfVectorizer(), "full_dataset", df, None, None, None)
 
 
-def fit_tfidf_vectorizer(train_df: pd.DataFrame, max_features: int, seed: int = 42) -> tuple[TfidfVectorizer, any]:
+def fit_tfidf_vectorizer(train_df: pd.DataFrame, max_features: int, seed: int = 42, text_fields=None) -> tuple[TfidfVectorizer, any]:
     vectorizer = TfidfVectorizer(
         lowercase=True,
         ngram_range=(1, 2),
@@ -52,13 +52,13 @@ def fit_tfidf_vectorizer(train_df: pd.DataFrame, max_features: int, seed: int = 
         max_features=max_features,
         sublinear_tf=True,
     )
-    corpus = build_combined_text(train_df)
+    corpus = build_combined_text(train_df, text_fields)
     matrix = vectorizer.fit_transform(corpus)
     return vectorizer, matrix
 
 
-def transform_text(df: pd.DataFrame, vectorizer: TfidfVectorizer):
-    return vectorizer.transform(build_combined_text(df))
+def transform_text(df: pd.DataFrame, vectorizer: TfidfVectorizer, text_fields=None):
+    return vectorizer.transform(build_combined_text(df, text_fields))
 
 
 def save_vectorizer(vectorizer: TfidfVectorizer, output_dir: str) -> str:

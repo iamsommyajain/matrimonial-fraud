@@ -2,141 +2,139 @@
 MODEL 2A - TEXT ANOMALY DETECTION
 ==============================================================================
 Dataset size: 50,000
-Primary target positives: 843
-Threshold used: 0.66
+Evaluation scope: temporal_test (8,058 profiles)
+Primary target positives: 141
+Threshold used: 0.00
 Exploratory mode: False
 Interests column present: False
 
 Primary Scope-Aligned Metrics
-  AUC-ROC   : 0.8142
-  AUC-PR    : 0.3574
-  KS stat   : 0.5051
-  Precision : 0.4315
-  Recall    : 0.3547
-  F1        : 0.3893
-  Confusion : TN=48763, FP=394, FN=544, TP=299
+  AUC-ROC   : 0.2212
+  AUC-PR    : 0.0104
+  KS stat   : 0.4454
+  Precision : 0.0175
+  Recall    : 1.0000
+  F1        : 0.0344
+  Confusion : TN=0, FP=7917, FN=0, TP=141
 
 Threshold Recommendations
-  Best F1 threshold: 0.66 (P=0.4315, R=0.3547, F1=0.3893)
-  Precision >= 0.80: 0.68 (P=0.8780, R=0.1281, F1=0.2236)
-  Recall >= 0.80: 0.62 (P=0.0257, R=0.8790, F1=0.0500)
+  Best F1 threshold: 0.00 (P=0.0175, R=1.0000, F1=0.0344)
+  Precision >= 0.80: none
+  Recall >= 0.80: 0.00 (P=0.0175, R=1.0000, F1=0.0344)
 
 Recall@K / Queue Quality
  top_k  precision_at_k  targets_captured  recall_at_k  minimum_score
-   100           0.910                91     0.107948       0.682422
-   500           0.532               266     0.315540       0.662866
-  1000           0.334               334     0.396204       0.656746
+   100           0.000                 0     0.000000       0.482101
+   500           0.008                 4     0.028369       0.415033
+  1000           0.006                 6     0.042553       0.394032
 
 Tail-Risk Concentration
  tail_pct  profiles_reviewed  targets_captured   recall  precision
-     0.01                500               266 0.315540     0.5320
-     0.02               1000               334 0.396204     0.3340
-     0.05               2500               427 0.506524     0.1708
-     0.10               5000               499 0.591934     0.0998
+     0.01                 80                 0 0.000000   0.000000
+     0.02                161                 0 0.000000   0.000000
+     0.05                402                 1 0.007092   0.002488
+     0.10                805                 6 0.042553   0.007453
 
 Calibration Buckets
        bucket  count  average_score  target_rate
-(-0.001, 0.1]      8       0.065579     0.000000
-   (0.1, 0.2]     10       0.155524     0.000000
-   (0.2, 0.3]     36       0.268865     0.027778
-   (0.3, 0.4]    102       0.358591     0.000000
-   (0.4, 0.5]    434       0.467072     0.002304
-   (0.5, 0.6]   4513       0.572782     0.003545
-   (0.6, 0.7]  44875       0.626080     0.017894
-   (0.7, 0.8]     22       0.708852     1.000000
-   (0.8, 0.9]      0            NaN          NaN
-   (0.9, 1.0]      0            NaN          NaN
+(-0.001, 0.1]      0            NaN          NaN
+   (0.1, 0.2]      0            NaN          NaN
+   (0.2, 0.3]      8       0.290382     1.000000
+   (0.3, 0.4]   7380       0.371253     0.017480
+   (0.4, 0.5]    594       0.427541     0.006734
+   (0.5, 0.6]     60       0.538505     0.000000
+   (0.6, 0.7]     11       0.639010     0.000000
+   (0.7, 0.8]      3       0.771428     0.000000
+   (0.8, 0.9]      1       0.875747     0.000000
+   (0.9, 1.0]      1       0.916463     0.000000
 
 Score Histogram
 score_bin  target_count  legitimate_count
-  0.0-0.1             0                 8
-  0.1-0.2             0                10
-  0.2-0.3             1                35
-  0.3-0.4             0               102
-  0.4-0.5             1               433
-  0.5-0.6            16              4497
-  0.6-0.7           803             44072
-  0.7-0.8            22                 0
-  0.8-0.9             0                 0
-  0.9-1.0             0                 0
+  0.0-0.1             0                 0
+  0.1-0.2             0                 0
+  0.2-0.3             8                 0
+  0.3-0.4           129              7251
+  0.4-0.5             4               590
+  0.5-0.6             0                60
+  0.6-0.7             0                11
+  0.7-0.8             0                 3
+  0.8-0.9             0                 1
+  0.9-1.0             0                 1
 
 Percentile Overlap
-  target_p10                         0.6169
-  target_p50                         0.6500
-  target_p90                         0.6828
-  legitimate_p10                     0.5995
-  legitimate_p50                     0.6228
-  legitimate_p90                     0.6427
-  target_share_leq_legitimate_p90    0.4009
+  target_p10                         0.3110
+  target_p50                         0.3527
+  target_p90                         0.3812
+  legitimate_p10                     0.3538
+  legitimate_p50                     0.3741
+  legitimate_p90                     0.3972
+  target_share_leq_legitimate_p90    0.9574
 
 Decile Lift
  decile  count  target_rate  targets     lift  cumulative_target_capture
-      1   5000       0.0998      499 5.919336                   0.591934
-      2   5000       0.0162       81 0.960854                   0.096085
-      3   5000       0.0110       55 0.652432                   0.065243
-      4   5000       0.0088       44 0.521945                   0.052195
-      5   5000       0.0060       30 0.355872                   0.035587
-      6   5000       0.0074       37 0.438909                   0.043891
-      7   5000       0.0054       27 0.320285                   0.032028
-      8   5000       0.0052       26 0.308422                   0.030842
-      9   5000       0.0052       26 0.308422                   0.030842
-     10   5000       0.0036       18 0.213523                   0.021352
+      1    806     0.007444        6 0.425426                   0.042553
+      2    806     0.001241        1 0.070904                   0.007092
+      3    806     0.008685        7 0.496331                   0.049645
+      4    805     0.003727        3 0.212977                   0.021277
+      5    806     0.016129       13 0.921757                   0.092199
+      6    806     0.004963        4 0.283618                   0.028369
+      7    805     0.009938        8 0.567940                   0.056738
+      8    806     0.012407       10 0.709044                   0.070922
+      9    806     0.022333       18 1.276279                   0.127660
+     10    806     0.088089       71 5.034211                   0.503546
 
 Fraud-Type Attribution
-      fraud_type  count  avg_text_risk  p90_text_risk  threshold_recall
-    template_bio    500       0.649781       0.685009             0.372
-           multi    500       0.638889       0.673880             0.228
-      functional    500       0.620926       0.642559             0.002
-  financial_scam    500       0.620199       0.643589             0.006
-coordinated_ring    500       0.617041       0.642452             0.004
+    fraud_type  count  avg_text_risk  p90_text_risk  threshold_recall
+financial_scam     85       0.380766       0.400942               1.0
+    functional     87       0.377021       0.394105               1.0
+         multi     87       0.357678       0.385977               1.0
+  template_bio     83       0.349970       0.382734               1.0
+
+Text Component Diagnostics (higher means more suspicious)
+                          component  target_mean  legitimate_mean  mean_difference  target_p90  legitimate_p90
+                     max_similarity     0.786320         0.839257        -0.052937    0.853904        0.884835
+               mean_top3_similarity     0.773637         0.826417        -0.052780    0.844465        0.870251
+               mean_top5_similarity     0.766634         0.818906        -0.052273    0.836326        0.862972
+              mean_top10_similarity     0.755937         0.807448        -0.051512    0.822860        0.852649
+                neighbors_above_070     8.865248        10.952507        -2.087259   11.000000       11.000000
+                neighbors_above_080     2.765957         6.188960        -3.423003   11.000000       11.000000
+                neighbors_above_090     0.021277         0.083365        -0.062088    0.000000        0.000000
+                neighbors_above_095     0.000000         0.002021        -0.002021    0.000000        0.000000
+exact_combined_text_duplicate_count     0.000000         0.000000         0.000000    0.000000        0.000000
+          exact_bio_duplicate_count     0.652482         2.911456        -2.258974    1.000000        4.000000
+     normalized_neighbors_above_090     0.001934         0.007579        -0.005644    0.000000        0.000000
+     normalized_neighbors_above_095     0.000000         0.001010        -0.001010    0.000000        0.000000
+         normalized_duplicate_count     0.005483         0.024466        -0.018983    0.008403        0.033613
+                      raw_text_risk     0.349848         0.377699        -0.027851    0.381226        0.397163
+                          text_risk     0.349848         0.377699        -0.027851    0.381226        0.397163
 
 False Positive Analysis
-                          profile_id     fraud_type  max_similarity  exact_combined_text_duplicate_count  exact_bio_duplicate_count  text_risk
-aa700736-22d2-4262-a71a-9ef6105beff2            NaN        0.754380                                    0                          0   0.663910
-1195ef5c-97d3-493d-95f2-7c849ccc23d7            NaN        0.750194                                    0                          0   0.667289
-23545b1b-867d-4d8d-a120-58744aa7dc7e            NaN        0.746137                                    0                          0   0.669876
-1bdf7435-e167-49ff-b673-7fdb8f764a36            NaN        0.782181                                    0                          0   0.662068
-bf5e61e3-b9f4-4233-b8b4-1e56061ca67e financial_scam        0.747281                                    0                          0   0.664824
-9f14fb1c-d9e1-4a31-8c2b-8ff354291fe0            NaN        0.701438                                    0                          1   0.687406
-50e1739e-b1aa-486a-8a29-d9430a4d337a            NaN        0.759812                                    0                          0   0.660263
-db464473-ebba-4c46-9f43-d2067a8c932d            NaN        0.758576                                    0                          1   0.660573
-f0bc0701-fa16-4e48-a844-c9525879aa33            NaN        0.750779                                    0                          0   0.665836
-bf9cea47-9aee-48d0-8ca0-254e52b7f11e            NaN        0.791343                                    0                          0   0.660074
-c55431c6-64c6-4509-814c-be3d58ace476            NaN        0.751757                                    0                          0   0.663815
-d80bb4e0-d391-4319-8719-dcb5f4d569b8            NaN        0.729099                                    0                          0   0.676325
-ba92117e-391a-4353-96b7-5776a5fe3c9a            NaN        0.760551                                    0                          0   0.663068
-3033fd12-c120-4cae-bba0-559c9f128b67            NaN        0.690256                                    0                          0   0.692798
-cd12857f-5a11-42c6-90fe-9e42f82eda68            NaN        0.747199                                    0                          0   0.665555
-821acca6-1e07-4258-8005-71d0000a7929            NaN        0.755052                                    0                          0   0.662426
-b6c30ccb-261d-47b0-8f45-5471280ef791            NaN        0.729423                                    0                          0   0.672134
-a7e0f9bc-de38-4ec4-bda2-18b2d613919e            NaN        0.756221                                    0                          0   0.665365
-954f5fbd-611a-4c89-bd02-98daf3916d62            NaN        0.743174                                    0                          0   0.668764
-382230fe-63ae-4bdd-8f93-795c1257a976            NaN        0.755396                                    0                          0   0.667556
+                          profile_id fraud_type  max_similarity  exact_combined_text_duplicate_count  exact_bio_duplicate_count  text_risk
+12e67de5-d706-452a-ad25-49a432f46187        NaN        0.855488                                    0                          3   0.384935
+1a60f890-14d7-480a-acf0-ce8b95b7c6f4        NaN        0.838952                                    0                          3   0.371130
+239e9baf-d945-4f1c-b34c-3b90b819df42        NaN        0.834151                                    0                          2   0.375543
+9f2e1233-00a9-47c1-bb11-cec6b2374cbb        NaN        0.807105                                    0                          1   0.360750
+c1a6011c-0306-4d0e-ac43-217f09c9fec3        NaN        0.843086                                    0                          2   0.374552
+5a5e79bd-4e7f-42f0-8c60-2a3df172fc83        NaN        0.853130                                    0                          1   0.382749
+f5bbd90c-4c2c-41e1-ab9b-2e07d3f2cd02        NaN        0.835951                                    0                          0   0.369765
+39e39bc7-0316-46cc-ba86-8f796a073746        NaN        0.851434                                    0                          1   0.370878
+b34741ce-464f-42ff-a1ad-94da661f263e        NaN        0.816623                                    0                          0   0.364447
+2061c40f-2e84-405b-96bd-fdcc8ec75de1        NaN        0.797383                                    0                          1   0.356811
+4a6e3267-42db-4f6d-89bc-89e4c91a7227        NaN        0.808525                                    0                          0   0.361776
+d7a881fd-4559-4eae-ad7d-244199964ffa        NaN        0.840066                                    0                          2   0.368795
+75d9a1c9-ae86-459e-820a-7ce9a53ec31b        NaN        0.832826                                    0                          1   0.374312
+a30737ba-53f8-4b0e-8f9d-0fea27777b4f        NaN        0.897083                                    0                        119   0.548192
+e6ecc887-8b02-41cb-9139-e8d64325322c        NaN        0.909472                                    0                          2   0.416163
+083f3364-a1fa-4547-8b1b-54f78ec3f220        NaN        0.801944                                    0                          0   0.341111
+3a38c63e-b52d-4a0f-93c4-03fad8118064        NaN        0.872341                                    0                          1   0.385416
+1f2daa1b-015b-4208-bd99-13f407f9aed1        NaN        0.855276                                    0                          0   0.371990
+84c75c88-3fdf-4551-8fd0-3c72c208e91d        NaN        0.862914                                    0                          1   0.378482
+983f4b52-8752-4e65-9fff-b50e84ae1d2c        NaN        0.851179                                    0                          1   0.374701
 
 False Negative Analysis
-                          profile_id   fraud_type  max_similarity  exact_combined_text_duplicate_count  exact_bio_duplicate_count  text_risk
-c900ee01-c4c0-4239-be40-7652e94cda8a template_bio        0.793969                                    0                          0   0.653600
-3eeb9d62-d96d-4c00-adbe-f4bb95e317cf template_bio        0.796082                                    0                          0   0.644443
-1fe9395f-6aa4-4121-8213-b4aec94ae37c        multi        0.770457                                    0                          0   0.657954
-1c686fd8-c442-4ed2-9b5a-fd26bb2d10b1        multi        0.792461                                    0                          0   0.648247
-52e0d1c4-cb22-4170-8e09-34d2381f4877 template_bio        0.831625                                    0                          1   0.628724
-c5f4f30d-07f8-4fbb-bec3-13904b1a41de template_bio        0.891307                                    0                          3   0.601082
-d9cb9672-fe13-4e2c-aac9-ea2dd2ab3218        multi        0.772141                                    0                          1   0.654624
-d040eb01-b50d-4938-a308-e242e14c0a1f template_bio        0.805487                                    0                          0   0.641117
-75cc4fed-cc8c-4f39-97bc-171e14b1a87e template_bio        0.868386                                    0                          0   0.615729
-d7a176c3-cfea-4f3c-9073-ed311301076a        multi        0.853045                                    0                          0   0.620251
-40f82b27-84cc-43bb-b5e2-3eed59a8b445 template_bio        0.893451                                    0                          4   0.601912
-ad919006-5cbd-40d3-87ee-69da63539bfe template_bio        0.767002                                    0                          0   0.657771
-983aa910-2d5b-42ed-bc09-97bcc4539959        multi        0.830827                                    0                          2   0.623678
-795ec6a9-25d1-4942-a6a5-2771e68b0692        multi        0.823394                                    0                          0   0.638429
-868f6ff1-3a0e-4599-8a54-af154c37cf3e template_bio        0.791077                                    0                          0   0.645590
-602c1d52-61fe-42de-a047-f2fce3fe01b6        multi        0.845133                                    0                          7   0.614613
-dad6d1e9-611f-48d5-aeaf-9787a7346aa0 template_bio        0.894892                                    0                          1   0.600092
-2aa276e5-1ce9-441a-8e9e-60c6e56a8d88 template_bio        0.769635                                    0                          0   0.655126
-d8869043-1406-4c5d-99a9-2128f4be32f8 template_bio        0.912215                                    0                          0   0.575899
-24c088e9-aac0-46db-a01d-0c6eca02375c template_bio        0.779744                                    0                          0   0.651703
+  none
 
 Runtime
-  nn_fit_time_sec   : 0.0688
-  nn_query_time_sec : 235.8147
-  total_time_sec    : 696.0277
+  nn_fit_time_sec   : 0.0369
+  nn_query_time_sec : 193.9138
+  total_time_sec    : 404.8147

@@ -12,7 +12,9 @@ import numpy as np
 import pandas as pd
 
 REQUIRED_COLUMNS = {"profile_id", "created_at", "is_fraud", "fraud_type"}
-BEHAVIOR_LIST_COLUMNS = ("login_timestamps", "edit_timestamps", "photo_upload_dates", "login_ip_list")
+TIMESTAMP_COLUMNS = ("login_timestamps", "edit_timestamps", "photo_upload_dates")
+STRING_LIST_COLUMNS = ("login_ip_list",)
+BEHAVIOR_LIST_COLUMNS = TIMESTAMP_COLUMNS + STRING_LIST_COLUMNS
 BEHAVIOR_COUNT_COLUMNS = ("messages_sent", "messages_received", "match_requests_sent", "match_accepts", "unique_contacts")
 
 BEHAVIOR_SIGNAL_TARGETS = {
@@ -34,22 +36,27 @@ class BehaviorAuditResult:
     available_signals: dict[str, bool]
 
 
-def _parse_iso_list(value: object) -> list[datetime]:
+def _deserialize_list(value: object) -> list[object]:
     if value is None or (isinstance(value, float) and np.isnan(value)):
         return []
     if isinstance(value, list):
-        raw = value
+        return value
     elif isinstance(value, str):
         text = value.strip()
         if not text:
             return []
         try:
             import json
-            raw = json.loads(text)
+            parsed = json.loads(text)
         except Exception:
             return []
+        return parsed if isinstance(parsed, list) else []
     else:
         return []
+
+
+def _parse_datetime_list(value: object) -> list[datetime]:
+    raw = _deserialize_list(value)
     out = []
     for item in raw:
         try:
@@ -57,6 +64,39 @@ def _parse_iso_list(value: object) -> list[datetime]:
         except Exception:
             continue
     return sorted(out)
+
+
+def _parse_string_list(value: object) -> list[str]:
+    raw = _deserialize_list(value)
+    return [str(item).strip() for item in raw if str(item).strip()]
+
+
+def _type_after_deserialization(value: object) -> str:
+    raw = _deserialize_list(value)
+    if not raw:
+        return "list[empty]"
+    item_types = sorted({type(item).__name__ for item in raw})
+    return f"list[{', '.join(item_types)}]"
+
+
+def _column_diagnostic(df: pd.DataFrame, column: str, parser_name: str, parser) -> dict:
+    values = df[column] if column in df.columns else pd.Series([], dtype=object)
+    raw_lists = values.map(_deserialize_list) if column in df.columns else pd.Series([], dtype=object)
+    parsed_lists = values.map(parser) if column in df.columns else pd.Series([], dtype=object)
+    raw_item_count = int(raw_lists.map(len).sum()) if len(raw_lists) else 0
+    parsed_item_count = int(parsed_lists.map(len).sum()) if len(parsed_lists) else 0
+    non_empty_count = int(raw_lists.map(len).gt(0).sum()) if len(raw_lists) else 0
+    example = next((items for items in raw_lists if items), [])
+    return {
+        "column": column,
+        "raw_python_type": _type_after_deserialization(next((v for v in values if _deserialize_list(v)), None)),
+        "non_empty_count": non_empty_count,
+        "example_value": str(example[:3]) if example else "",
+        "parser_used": parser_name,
+        "raw_item_count": raw_item_count,
+        "parsed_item_count": parsed_item_count,
+        "parse_success_pct": (100.0 * parsed_item_count / raw_item_count) if raw_item_count else 0.0,
+    }
 
 
 def _resolve_col(df: pd.DataFrame, *candidates: str) -> str | None:
@@ -83,16 +123,28 @@ def generate_behavior_audit(df: pd.DataFrame) -> BehaviorAuditResult:
     created_at = pd.to_datetime(df["created_at"], errors="coerce")
     last_active = pd.to_datetime(df["last_active_at"], errors="coerce") if "last_active_at" in df.columns else pd.NaT
 
-    parsed = {col: df[col].map(_parse_iso_list) if col in df.columns else pd.Series([[]] * len(df), index=df.index)
-              for col in BEHAVIOR_LIST_COLUMNS}
+    parsed_timestamps = {
+        col: df[col].map(_parse_datetime_list) if col in df.columns else pd.Series([[]] * len(df), index=df.index)
+        for col in TIMESTAMP_COLUMNS
+    }
+    parsed_strings = {
+        col: df[col].map(_parse_string_list) if col in df.columns else pd.Series([[]] * len(df), index=df.index)
+        for col in STRING_LIST_COLUMNS
+    }
     event_counts = pd.Series(0, index=df.index, dtype=float)
-    for col in BEHAVIOR_LIST_COLUMNS:
-        event_counts = event_counts.add(parsed[col].map(len), fill_value=0)
+    for values in parsed_timestamps.values():
+        event_counts = event_counts.add(values.map(len), fill_value=0)
 
     has_any_behavior = event_counts > 0
     has_device = df["device_type"].notna() if "device_type" in df.columns else pd.Series(False, index=df.index)
-    has_location = parsed["login_ip_list"].map(len) > 0
-    missing_timestamps = sum(parsed[col].map(len).eq(0).sum() for col in BEHAVIOR_LIST_COLUMNS)
+    has_location = parsed_strings["login_ip_list"].map(len) > 0
+    missing_timestamps = sum(parsed_timestamps[col].map(len).eq(0).sum() for col in TIMESTAMP_COLUMNS)
+
+    diagnostics = []
+    for col in TIMESTAMP_COLUMNS:
+        diagnostics.append(_column_diagnostic(df, col, "_parse_datetime_list", _parse_datetime_list))
+    for col in STRING_LIST_COLUMNS:
+        diagnostics.append(_column_diagnostic(df, col, "_parse_string_list", _parse_string_list))
 
     rows = []
     for fraud_type, group in df.groupby(df["fraud_type"].fillna("legitimate")):
@@ -102,9 +154,9 @@ def generate_behavior_audit(df: pd.DataFrame) -> BehaviorAuditResult:
             "count": len(group),
             "profiles_with_behavior": int(has_any_behavior.loc[group_idx].sum()),
             "mean_events": float(event_counts.loc[group_idx].mean()) if len(group) else 0.0,
-            "mean_logins": float(parsed["login_timestamps"].loc[group_idx].map(len).mean()) if len(group) else 0.0,
-            "mean_edits": float(parsed["edit_timestamps"].loc[group_idx].map(len).mean()) if len(group) else 0.0,
-            "mean_uploads": float(parsed["photo_upload_dates"].loc[group_idx].map(len).mean()) if len(group) else 0.0,
+            "mean_logins": float(parsed_timestamps["login_timestamps"].loc[group_idx].map(len).mean()) if len(group) else 0.0,
+            "mean_edits": float(parsed_timestamps["edit_timestamps"].loc[group_idx].map(len).mean()) if len(group) else 0.0,
+            "mean_uploads": float(parsed_timestamps["photo_upload_dates"].loc[group_idx].map(len).mean()) if len(group) else 0.0,
         })
 
     lines = [
@@ -118,10 +170,22 @@ def generate_behavior_audit(df: pd.DataFrame) -> BehaviorAuditResult:
         f"Profiles with location data: {int(has_location.sum()):,}",
         f"Profiles with missing timestamps across event lists: {int(missing_timestamps):,}",
         "",
-        "Event-type distribution:",
+        "Serialized-column parsing diagnostics:",
     ]
-    for col in BEHAVIOR_LIST_COLUMNS:
-        counts = parsed[col].map(len)
+    for diagnostic in diagnostics:
+        lines.append(
+            f"  {diagnostic['column']:<22} type={diagnostic['raw_python_type']:<18} "
+            f"non_empty={diagnostic['non_empty_count']:,} "
+            f"parser={diagnostic['parser_used']} "
+            f"success={diagnostic['parse_success_pct']:.1f}%"
+        )
+        lines.append(f"    example={diagnostic['example_value']}")
+    lines += ["", "Event-type distribution:"]
+    for col in TIMESTAMP_COLUMNS:
+        counts = parsed_timestamps[col].map(len)
+        lines.append(f"  {col:<22} total={int(counts.sum()):,} profiles={int((counts > 0).sum()):,}")
+    for col in STRING_LIST_COLUMNS:
+        counts = parsed_strings[col].map(len)
         lines.append(f"  {col:<22} total={int(counts.sum()):,} profiles={int((counts > 0).sum()):,}")
     lines += [
         "",
@@ -146,9 +210,13 @@ def generate_behavior_audit(df: pd.DataFrame) -> BehaviorAuditResult:
         warnings.append("No login_ip_list found; location-switch features will be unavailable.")
     if not available["device"]:
         warnings.append("No device_type field found; device-switch features will be unavailable.")
+    for diagnostic in diagnostics:
+        if diagnostic["non_empty_count"] and diagnostic["parse_success_pct"] == 0.0:
+            warnings.append(f"All non-empty values failed parsing for {diagnostic['column']}.")
 
     audit_text = "\n".join(lines)
     summary = pd.DataFrame(rows)
+    summary.attrs["column_diagnostics"] = pd.DataFrame(diagnostics)
     return BehaviorAuditResult(audit_text, summary, warnings, available)
 
 
@@ -159,4 +227,3 @@ def save_behavior_audit(df: pd.DataFrame, output_dir: str) -> BehaviorAuditResul
         f.write(result.text)
     result.summary.to_csv(os.path.join(output_dir, "behavior_audit.csv"), index=False)
     return result
-
