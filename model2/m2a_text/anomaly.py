@@ -10,7 +10,7 @@ import pandas as pd
 from scipy import sparse
 from sklearn.neighbors import NearestNeighbors
 
-from dataset_generation.model2.text_audit import build_combined_text, normalize_text, resolve_text_source
+from dataset_generation.model2.m2a_text.audit import build_combined_text, normalize_text, resolve_text_source
 
 
 @dataclass

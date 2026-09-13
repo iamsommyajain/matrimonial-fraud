@@ -3,11 +3,11 @@ total_profiles,50000.0
 missing_bio,0.0
 missing_hobbies,0.0
 missing_interests,0.0
-unique_bio_count,30466.0
-exact_duplicate_bio_rows,30128.0
-bio_length_mean,445.107
+unique_bio_count,30572.0
+exact_duplicate_bio_rows,30058.0
+bio_length_mean,444.72784
 bio_length_median,439.0
-bio_length_p90,470.0
-combined_length_mean,667.35354
+bio_length_p90,469.0
+combined_length_mean,666.85034
 combined_length_median,663.0
 combined_length_p90,721.0

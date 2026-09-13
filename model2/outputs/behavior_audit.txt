@@ -3,31 +3,31 @@ MODEL 2B BEHAVIOR AUDIT
 ==============================================================================
 Total profiles: 50,000
 Profiles with behavioral records: 50,000
-Total behavioral events: 1,534,326
+Total behavioral events: 1,534,760
 Profiles with device data: 50,000
 Profiles with location data: 50,000
 Profiles with missing timestamps across event lists: 0
 
 Serialized-column parsing diagnostics:
   login_timestamps       type=list[str]          non_empty=50,000 parser=_parse_datetime_list success=100.0%
-    example=['2024-06-16T17:10:00', '2024-06-20T20:30:00', '2024-06-23T02:12:00']
+    example=['2024-01-26T00:23:00', '2024-01-26T11:42:00', '2024-01-27T01:44:00']
   edit_timestamps        type=list[str]          non_empty=50,000 parser=_parse_datetime_list success=100.0%
-    example=['2024-06-16T05:12:00']
+    example=['2024-01-26T02:19:00']
   photo_upload_dates     type=list[str]          non_empty=50,000 parser=_parse_datetime_list success=100.0%
-    example=['2024-06-10T18:41:00', '2024-06-12T02:11:00', '2024-06-13T00:15:00']
+    example=['2024-01-22T08:23:00', '2024-01-22T10:25:00', '2024-01-23T07:47:00']
   login_ip_list          type=list[str]          non_empty=50,000 parser=_parse_string_list success=100.0%
-    example=['103.192.202.144', '103.192.202.121', '103.192.202.130']
+    example=['103.149.188.51', '103.149.188.12', '103.149.188.223']
 
 Event-type distribution:
-  login_timestamps       total=1,199,334 profiles=50,000
-  edit_timestamps        total=135,748 profiles=50,000
-  photo_upload_dates     total=199,244 profiles=50,000
-  login_ip_list          total=1,200,253 profiles=50,000
+  login_timestamps       total=1,199,287 profiles=50,000
+  edit_timestamps        total=136,417 profiles=50,000
+  photo_upload_dates     total=199,056 profiles=50,000
+  login_ip_list          total=1,200,512 profiles=50,000
 
 Behavior by fraud type:
-  legitimate               count=47,500 with_behavior=47,500 mean_events=30.50
-  coordinated_ring         count=500 with_behavior=500 mean_events=30.50
+  legitimate               count=47,500 with_behavior=47,500 mean_events=30.51
+  coordinated_ring         count=500 with_behavior=500 mean_events=30.64
   financial_scam           count=500 with_behavior=500 mean_events=30.34
-  functional               count=500 with_behavior=500 mean_events=30.39
-  multi                    count=500 with_behavior=500 mean_events=37.39
-  template_bio             count=500 with_behavior=500 mean_events=42.22
+  functional               count=500 with_behavior=500 mean_events=30.22
+  multi                    count=500 with_behavior=500 mean_events=38.55
+  template_bio             count=500 with_behavior=500 mean_events=41.10

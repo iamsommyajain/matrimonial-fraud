@@ -11,10 +11,10 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from dataset_generation.model2.behavior_audit import load_and_validate_profiles, save_behavior_audit
-from dataset_generation.model2.behavior_anomaly import score_behavior
-from dataset_generation.model2.behavior_features import build_behavior_features, preprocess_behavior_features
-from dataset_generation.model2.evaluate_m2b import build_report
+from dataset_generation.model2.m2b_behavior.audit import load_and_validate_profiles, save_behavior_audit
+from dataset_generation.model2.m2b_behavior.anomaly import score_behavior
+from dataset_generation.model2.m2b_behavior.features import build_behavior_features, preprocess_behavior_features
+from dataset_generation.model2.m2b_behavior.evaluate import build_concise_report, build_report
 
 
 def _split_dir_from_profiles(profiles_path: str) -> str | None:
@@ -163,7 +163,7 @@ def main():
         experiment=args.experiment,
         exploratory=exploratory,
     )
-    print(report)
+    print(build_concise_report(scores_df, threshold, args.experiment))
     print(f"Saved scores to {scores_path}")
     print(f"Saved features to {features_path}")
     print(f"Saved audit to {os.path.join(args.output_dir, 'behavior_audit.txt')}")

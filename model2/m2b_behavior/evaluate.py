@@ -51,6 +51,12 @@ def _sweep_thresholds(df, target_col):
     return sweep, best, (p80.iloc[0].to_dict() if not p80.empty else None), (r80.iloc[0].to_dict() if not r80.empty else None)
 
 
+def _fmt_threshold_row(row):
+    if row is None:
+        return "none"
+    return f"{row['threshold']:.2f} (P={row['precision']:.4f}, R={row['recall']:.4f}, F1={row['f1']:.4f})"
+
+
 def _top_k(df, target_col, ks=(100, 500, 1000)):
     ranked = df.sort_values("behavior_risk", ascending=False)
     total = ranked[target_col].sum()
@@ -124,6 +130,67 @@ def _error_cases(df, target_col, threshold):
     fp["error_type"] = "false_positive"
     fn["error_type"] = "false_negative"
     return fp, fn
+
+
+def build_concise_report(
+    df: pd.DataFrame,
+    threshold: float,
+    experiment: str,
+    evaluation_df: pd.DataFrame | None = None,
+    evaluation_scope: str = "full_dataset",
+) -> str:
+    """Build the short terminal report; full diagnostics remain in m2b_report.txt."""
+    evaluated = df if evaluation_df is None else evaluation_df
+    target = evaluated["m2b_target"].astype(int).to_numpy()
+    scores = evaluated["behavior_risk"].to_numpy()
+    metrics = _binary_metrics(target, scores, threshold)
+    auc_roc = _safe_auc_roc(target, scores)
+    auc_pr = float(average_precision_score(target, scores)) if len(np.unique(target)) > 1 else 0.0
+    _, best, p80, r80 = _sweep_thresholds(evaluated, "m2b_target")
+
+    lines = [
+        "",
+        "=" * 60,
+        "MODEL 2B - BEHAVIORAL ANOMALY REPORT",
+        "=" * 60,
+        f"Dataset    : {len(df):,} profiles",
+        f"Evaluation : {evaluation_scope} ({len(evaluated):,} profiles)",
+        f"Experiment : {experiment}",
+        f"Threshold  : {threshold:.2f}",
+        "",
+        "Primary metrics",
+        f"  AUC-ROC   : {auc_roc:.4f}",
+        f"  AUC-PR    : {auc_pr:.4f}",
+        f"  Precision : {metrics['precision']:.4f} ({metrics['tp']} TP, {metrics['fp']} FP)",
+        f"  Recall    : {metrics['recall']:.4f} ({metrics['fn']} missed)",
+        f"  F1 Score  : {metrics['f1']:.4f}",
+        f"  Confusion : TN={metrics['tn']}, FP={metrics['fp']}, FN={metrics['fn']}, TP={metrics['tp']}",
+        "",
+        "Threshold recommendations",
+        f"  Best F1         : {_fmt_threshold_row(best)}",
+        f"  Precision >= 0.80: {_fmt_threshold_row(p80)}",
+        f"  Recall >= 0.80   : {_fmt_threshold_row(r80)}",
+        "",
+        "Recall by fraud type",
+    ]
+
+    fraud_rows = []
+    for fraud_type, group in evaluated.groupby("fraud_type"):
+        fraud_rows.append({
+            "fraud_type": fraud_type,
+            "count": len(group),
+            "recall": float((group["behavior_risk"] >= threshold).mean()),
+        })
+    if fraud_rows:
+        lines.append(pd.DataFrame(fraud_rows).sort_values("recall").to_string(index=False))
+    else:
+        lines.append("  none")
+    lines += [
+        "",
+        "Detailed diagnostics: m2b_report.txt",
+        "=" * 60,
+    ]
+    return "\n".join(lines)
 
 
 def build_report(

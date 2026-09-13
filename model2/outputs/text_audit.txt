@@ -5,23 +5,23 @@ Total profiles: 50,000
 Missing bio: 0 (0.00%)
 Missing hobbies: 0 (0.00%)
 Missing interests: 0 (0.00%)
-Unique normalized bio count: 30,466
-Exact duplicate bio rows: 30,128
+Unique normalized bio count: 30,572
+Exact duplicate bio rows: 30,058
 
 Most frequent bios:
-  [  120] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in delhi, i believe in maintaining strong b
-  [   82] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in hyderabad, i believe in maintaining stro
-  [   78] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in kolkata, i believe in maintaining strong
-  [   71] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in chennai, i believe in maintaining strong
-  [   70] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in ahmedabad, i believe in maintaining stro
-  [   65] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in bangalore, i believe in maintaining stro
-  [   58] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in pune, i believe in maintaining strong bo
-  [   54] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in mumbai, i believe in maintaining strong 
-  [   48] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in ludhiana, i believe in maintaining stron
-  [   42] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in ghaziabad, i believe in maintaining stro
+  [  109] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in delhi, i believe in maintaining strong b
+  [   76] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in kolkata, i believe in maintaining strong
+  [   74] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in hyderabad, i believe in maintaining stro
+  [   72] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in bangalore, i believe in maintaining stro
+  [   60] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in pune, i believe in maintaining strong bo
+  [   60] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in mumbai, i believe in maintaining strong 
+  [   58] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in ahmedabad, i believe in maintaining stro
+  [   54] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in chennai, i believe in maintaining strong
+  [   45] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in aurangabad, i believe in maintaining str
+  [   43] i am a simple and grounded person who values family above everything else. having been raised in a close-knit family in kochi, i believe in maintaining strong b
 
-Bio length mean / median / p90: 445.11 / 439.00 / 470.00
-Combined length mean / median / p90: 667.35 / 663.00 / 721.00
+Bio length mean / median / p90: 444.73 / 439.00 / 469.00
+Combined length mean / median / p90: 666.85 / 663.00 / 721.00
 
 Duplicate frequency distribution (combined text):
   group_size=50000 profile_count=1

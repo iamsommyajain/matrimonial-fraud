@@ -181,29 +181,98 @@ def _error_cases(df, target_col, threshold):
     return fp, fn
 
 
-def build_report(df: pd.DataFrame, threshold: float, output_dir: str, runtime: dict[str, float], exploratory: bool) -> str:
-    primary = df["m2a_target"].astype(int)
+def build_concise_report(
+    df: pd.DataFrame,
+    threshold: float,
+    evaluation_df: pd.DataFrame | None = None,
+    evaluation_scope: str = "full_dataset",
+) -> str:
+    """Build the short terminal report; full diagnostics remain in m2a_report.txt."""
+    evaluated = df if evaluation_df is None else evaluation_df
+    target = evaluated["m2a_target"].astype(int).to_numpy()
+    scores = evaluated["text_risk"].to_numpy()
+    metrics = _binary_metrics(target, scores, threshold)
+    auc_roc = _safe_auc_roc(target, scores)
+    auc_pr = float(average_precision_score(target, scores)) if len(np.unique(target)) > 1 else 0.0
+    _, best, prec80, rec80 = _threshold_sweep(evaluated, "m2a_target")
+
+    lines = [
+        "",
+        "=" * 60,
+        "MODEL 2A - TEXT ANOMALY REPORT",
+        "=" * 60,
+        f"Dataset    : {len(df):,} profiles",
+        f"Evaluation : {evaluation_scope} ({len(evaluated):,} profiles)",
+        f"Threshold  : {threshold:.2f}",
+        "",
+        "Primary metrics",
+        f"  AUC-ROC   : {auc_roc:.4f}",
+        f"  AUC-PR    : {auc_pr:.4f}",
+        f"  Precision : {metrics['precision']:.4f} ({metrics['tp']} TP, {metrics['fp']} FP)",
+        f"  Recall    : {metrics['recall']:.4f} ({metrics['fn']} missed)",
+        f"  F1 Score  : {metrics['f1']:.4f}",
+        f"  Confusion : TN={metrics['tn']}, FP={metrics['fp']}, FN={metrics['fn']}, TP={metrics['tp']}",
+        "",
+        "Threshold recommendations",
+        f"  Best F1        : {_fmt_threshold_row(best)}",
+        f"  Precision >= 0.80: {_fmt_threshold_row(prec80)}",
+        f"  Recall >= 0.80   : {_fmt_threshold_row(rec80)}",
+        "",
+        "Recall by fraud type",
+    ]
+
+    fraud_rows = []
+    for fraud_type, group in evaluated.groupby("fraud_type"):
+        fraud_rows.append({
+            "fraud_type": fraud_type,
+            "count": len(group),
+            "recall": float((group["text_risk"] >= threshold).mean()),
+        })
+    if fraud_rows:
+        lines.append(pd.DataFrame(fraud_rows).sort_values("recall").to_string(index=False))
+    else:
+        lines.append("  none")
+    lines += [
+        "",
+        "Detailed diagnostics: m2a_report.txt",
+        "=" * 60,
+    ]
+    return "\n".join(lines)
+
+
+def build_report(
+    df: pd.DataFrame,
+    threshold: float,
+    output_dir: str,
+    runtime: dict[str, float],
+    exploratory: bool,
+    evaluation_df: pd.DataFrame | None = None,
+    evaluation_scope: str = "full_dataset",
+) -> str:
+    evaluated = df if evaluation_df is None else evaluation_df
+    primary = evaluated["m2a_target"].astype(int)
     y = primary.to_numpy()
-    scores = df["text_risk"].to_numpy()
+    scores = evaluated["text_risk"].to_numpy()
     auc_roc = _safe_auc_roc(y, scores)
     auc_pr = float(average_precision_score(y, scores)) if len(np.unique(y)) > 1 else 0.0
     ks = _ks_stat(y, scores)
     binary = _binary_metrics(y, scores, threshold)
-    sweep, best, prec80, rec80 = _threshold_sweep(df, "m2a_target")
-    topk = _top_k(df, "m2a_target")
-    tail = _tail(df, "m2a_target")
-    calib = _calibration(df, "m2a_target")
-    hist = _score_histogram(df, "m2a_target")
-    overlap = _percentile_overlap(df, "m2a_target")
-    deciles = _decile_lift(df, "m2a_target")
-    attr = _fraud_attribution(df, threshold)
-    fp, fn = _error_cases(df, "m2a_target", threshold)
+    sweep, best, prec80, rec80 = _threshold_sweep(evaluated, "m2a_target")
+    topk = _top_k(evaluated, "m2a_target")
+    tail = _tail(evaluated, "m2a_target")
+    calib = _calibration(evaluated, "m2a_target")
+    hist = _score_histogram(evaluated, "m2a_target")
+    overlap = _percentile_overlap(evaluated, "m2a_target")
+    deciles = _decile_lift(evaluated, "m2a_target")
+    attr = _fraud_attribution(evaluated, threshold)
+    fp, fn = _error_cases(evaluated, "m2a_target", threshold)
 
     lines = [
         "=" * 78,
         "MODEL 2A - TEXT ANOMALY DETECTION",
         "=" * 78,
         f"Dataset size: {len(df):,}",
+        f"Evaluation scope: {evaluation_scope} ({len(evaluated):,} profiles)",
         f"Primary target positives: {int(y.sum()):,}",
         f"Threshold used: {threshold:.2f}",
         f"Exploratory mode: {exploratory}",

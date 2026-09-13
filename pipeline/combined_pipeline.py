@@ -18,10 +18,10 @@ REPO_ROOT = os.path.dirname(DATASET_ROOT)
 sys.path.insert(0, REPO_ROOT)
 
 from dataset_generation.model1.api.model1 import score_profile
-from dataset_generation.model2.run_m2a import _target_labels
-from dataset_generation.model2.text_audit import load_and_validate_profiles, save_audit
-from dataset_generation.model2.text_anomaly import compute_text_anomaly_scores
-from dataset_generation.model2.text_features import fit_tfidf_vectorizer, load_split_or_full, save_vectorizer, transform_text
+from dataset_generation.model2.m2a_text.run import _target_labels
+from dataset_generation.model2.m2a_text.audit import load_and_validate_profiles, save_audit
+from dataset_generation.model2.m2a_text.anomaly import compute_text_anomaly_scores
+from dataset_generation.model2.m2a_text.features import fit_tfidf_vectorizer, load_split_or_full, save_vectorizer, transform_text
 
 
 def _truthy(value) -> bool:

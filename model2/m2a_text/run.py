@@ -12,10 +12,10 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from dataset_generation.model2.evaluate_m2a import build_report
-from dataset_generation.model2.text_anomaly import compute_text_anomaly_scores
-from dataset_generation.model2.text_audit import load_and_validate_profiles, save_audit
-from dataset_generation.model2.text_features import fit_tfidf_vectorizer, load_split_or_full, save_vectorizer, transform_text
+from dataset_generation.model2.m2a_text.evaluate import build_concise_report, build_report
+from dataset_generation.model2.m2a_text.anomaly import compute_text_anomaly_scores
+from dataset_generation.model2.m2a_text.audit import load_and_validate_profiles, save_audit
+from dataset_generation.model2.m2a_text.features import fit_tfidf_vectorizer, load_split_or_full, save_vectorizer, transform_text
 
 
 def _target_labels(df: pd.DataFrame) -> pd.Series:
@@ -135,7 +135,7 @@ def main():
 
     print("Building report...", flush=True)
     report = build_report(scores_df, threshold, args.output_dir, {**scores_artifacts.runtime, "tfidf_fit_time_sec": tfidf_fit_time, "tfidf_transform_time_sec": tfidf_transform_time}, exploratory=artifacts.val_df is None, evaluation_df=evaluation_df, evaluation_scope=evaluation_scope)
-    print(report)
+    print(build_concise_report(scores_df, threshold, evaluation_df=evaluation_df, evaluation_scope=evaluation_scope))
     print(f"Saved scores to {scores_path}")
     print(f"Saved report to {os.path.join(args.output_dir, 'm2a_report.txt')}")
     print(f"Saved audit to {os.path.join(args.output_dir, 'text_audit.txt')}")

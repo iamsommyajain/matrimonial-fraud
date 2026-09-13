@@ -1,2 +1,2 @@
-"""Model 2A text anomaly detection package."""
+"""Model 2 fraud detection packages."""
 

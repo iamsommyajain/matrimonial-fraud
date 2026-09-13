@@ -9,7 +9,7 @@ import joblib
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from dataset_generation.model2.text_audit import build_combined_text, load_and_validate_profiles
+from dataset_generation.model2.m2a_text.audit import build_combined_text, load_and_validate_profiles
 
 
 @dataclass
