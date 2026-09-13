@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataset_generation.model1.m1_types import clamp01
+from ..m1_types import clamp01
 
 
 def build_uncertainty_summary(rule_results):

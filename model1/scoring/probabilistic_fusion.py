@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import math
 
-from dataset_generation.model1.config import (
+from ..config import (
     FUSION_STRATEGY,
     SCORE_CAP,
 )
 
-from dataset_generation.model1.m1_types import clamp01
+from ..m1_types import clamp01
 
-from dataset_generation.model1.fusion.attribution import contribution_entropy
+from .attribution import contribution_entropy
 
 
 def fuse_contributions(activated: dict):

@@ -10,8 +10,8 @@ typo-squatting, disposable, and fake-corporate patterns.
 import random
 import re
 
-from constants import COMPANY_DOMAIN_MAP, EMAIL_DOMAIN_CATEGORIES
-from email_features import domains_for_company
+from .constants import COMPANY_DOMAIN_MAP, EMAIL_DOMAIN_CATEGORIES
+from .email_features import domains_for_company
 
 # Fraud email generation patterns and personas
 FRAUD_PERSONAS = {

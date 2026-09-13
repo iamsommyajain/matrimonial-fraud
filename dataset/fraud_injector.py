@@ -24,13 +24,13 @@ import re
 from datetime import datetime, timedelta
 from copy import deepcopy
 
-from constants import (
+from .constants import (
     PROFESSIONS_BY_EDUCATION, INCOME_BASE_BY_PROFESSION,
     COMPANIES_LEGITIMATE,
 )
-from bio_templates import BIO_TEMPLATES
-from email_features import extract_email_risk_features
-from email_generator import generate_fraud_email
+from .bio_templates import BIO_TEMPLATES
+from .email_features import extract_email_risk_features
+from .email_generator import generate_fraud_email
 
 
 # ─────────────────────────────────────────────────────────────────────────────

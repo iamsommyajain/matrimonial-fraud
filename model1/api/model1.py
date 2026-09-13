@@ -5,7 +5,7 @@ Public entry point for the Functional Consistency Model (M1).
 This is the only file the rest of the system needs to import.
 
 Usage:
-    from model1 import score_profile
+    from dataset_generation.model1.api.model1 import score_profile
 
     result = score_profile(profile_dict)
     print(result["functional_risk_score"])   # 0.0 → clean, 1.0 → fraud
@@ -16,8 +16,8 @@ Usage:
 
 import time
 
-from dataset_generation.model1.feature_extractor import extract_m1_features
-from dataset_generation.model1.scorer import compute_functional_risk_score_detailed
+from ..feature_extraction.feature_extractor import extract_m1_features
+from ..scoring.scorer import compute_functional_risk_score_detailed
 
 
 def score_profile(profile: dict, include_profiling: bool = False) -> dict:

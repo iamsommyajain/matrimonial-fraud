@@ -4,7 +4,7 @@ generate_dataset.py
 Orchestrates the full 50,000-profile synthetic dataset generation.
 
 Run with:
-    python generate_dataset.py --seed 42 --output_dir ./output
+    python dataset/generate_dataset.py --seed 42 --output_dir ./output
 
 Output files:
     output/profiles.csv        — flat profile table (M1, M2, M3, M4 features)
@@ -39,20 +39,31 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-# Add dataset/ to path so imports work whether run from root or dataset/
-sys.path.insert(0, os.path.dirname(__file__))
-
-from legitimate_generator import generate_legitimate_profile
-from fraud_injector import (
-    inject_functional_fraud,
-    inject_template_bio_fraud,
-    inject_financial_scam_signals,
-    inject_ring_signals,
-    inject_multi_signal_fraud,
-)
-from graph_generator import build_interaction_graph
-from report_generator import generate_all_reports
-from validation import validate_dataset
+if __package__:
+    from .legitimate_generator import generate_legitimate_profile
+    from .fraud_injector import (
+        inject_functional_fraud,
+        inject_template_bio_fraud,
+        inject_financial_scam_signals,
+        inject_ring_signals,
+        inject_multi_signal_fraud,
+    )
+    from .graph_generator import build_interaction_graph
+    from .report_generator import generate_all_reports
+    from .validation import validate_dataset
+else:
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from dataset.legitimate_generator import generate_legitimate_profile
+    from dataset.fraud_injector import (
+        inject_functional_fraud,
+        inject_template_bio_fraud,
+        inject_financial_scam_signals,
+        inject_ring_signals,
+        inject_multi_signal_fraud,
+    )
+    from dataset.graph_generator import build_interaction_graph
+    from dataset.report_generator import generate_all_reports
+    from dataset.validation import validate_dataset
 
 
 # ─────────────────────────────────────────────────────────────────────────────

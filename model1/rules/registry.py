@@ -17,7 +17,7 @@ from __future__ import annotations
 import math
 import time
 
-from dataset_generation.model1.config import (
+from ..config import (
     CONFIDENCE_FLOOR,
     CONTRIBUTION_TEMPERATURE,
     FUSION_STRATEGY,
@@ -27,8 +27,8 @@ from dataset_generation.model1.config import (
     SATURATION_ALPHA,
     SCORE_CAP,
 )
-from dataset_generation.model1.fuzzy_rules import RULE_REGISTRY
-from dataset_generation.model1.m1_types import RuleResult, ScoreBreakdown, clamp01
+from .fuzzy_rules import RULE_REGISTRY
+from ..m1_types import RuleResult, ScoreBreakdown, clamp01
 
 
 def compute_rule_results(features: dict) -> list[RuleResult]:

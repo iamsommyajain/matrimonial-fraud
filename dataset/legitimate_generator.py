@@ -20,18 +20,18 @@ import random
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from constants import (
+from .constants import (
     GENDERS, GENDER_WEIGHTS,
     EDUCATION_LEVELS, EDUCATION_WEIGHTS, EDUCATION_FIELDS, COLLEGES,
     COLLEGE_CATEGORY_WEIGHTS, CITY_METADATA, COLLEGE_METADATA,
     PROFESSIONS_BY_EDUCATION, COMPANIES_LEGITIMATE, COMPANY_METADATA,
     INCOME_BASE_BY_PROFESSION,
 )
-from bio_templates import BIO_TEMPLATES, PARTNER_PREF_TEMPLATES
-from email_features import extract_email_risk_features
-from email_generator import generate_legitimate_email
-from hobby_generator import generate_hobbies
-from regional_demographics import generate_regional_demographics
+from .bio_templates import BIO_TEMPLATES, PARTNER_PREF_TEMPLATES
+from .email_features import extract_email_risk_features
+from .email_generator import generate_legitimate_email
+from .hobby_generator import generate_hobbies
+from .regional_demographics import generate_regional_demographics
 
 rng = np.random.default_rng()   # single shared RNG — seed at call site
 

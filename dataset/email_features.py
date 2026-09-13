@@ -10,7 +10,7 @@ import math
 import re
 from collections import Counter
 
-from constants import COMPANY_DOMAIN_MAP, EMAIL_DOMAIN_CATEGORIES
+from .constants import COMPANY_DOMAIN_MAP, EMAIL_DOMAIN_CATEGORIES
 
 
 RISK_KEYWORDS = {

@@ -17,7 +17,7 @@ DATASET_ROOT = os.path.dirname(os.path.dirname(__file__))
 REPO_ROOT = os.path.dirname(DATASET_ROOT)
 sys.path.insert(0, REPO_ROOT)
 
-from dataset_generation.model1.model1 import score_profile
+from dataset_generation.model1.api.model1 import score_profile
 from dataset_generation.model2.run_m2a import _target_labels
 from dataset_generation.model2.text_audit import load_and_validate_profiles, save_audit
 from dataset_generation.model2.text_anomaly import compute_text_anomaly_scores

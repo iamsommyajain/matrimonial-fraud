@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from dataset_generation.model1.config import (
+from ..config import (
     CONFIDENCE_FLOOR,
     CONTRIBUTION_TEMPERATURE,
     MINIMUM_SIGNAL_ACTIVATION,
     SATURATION_ALPHA,
 )
 
-from dataset_generation.model1.m1_types import clamp01
+from ..m1_types import clamp01
 
 
 def build_rule_contributions(rule_results, configured_weights):

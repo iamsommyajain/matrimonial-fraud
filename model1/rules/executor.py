@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from dataset_generation.model1.fuzzy_rules import RULE_REGISTRY
+from .fuzzy_rules import RULE_REGISTRY
 
 
 def execute_rules(features: dict):

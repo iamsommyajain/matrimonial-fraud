@@ -9,7 +9,7 @@ living in Bangalore without destroying the original linguistic covariance.
 
 import random
 
-from constants import (
+from .constants import (
     ALL_CITIES,
     CASTE_PRIORS_BY_RELIGION,
     CASTES_BY_STATE_AND_RELIGION,
@@ -21,7 +21,7 @@ from constants import (
     TIER_1_CITIES,
     TIER_2_CITIES,
 )
-from name_generator import generate_name, infer_name_style
+from .name_generator import generate_name, infer_name_style
 
 
 MIGRATION_DESTINATION_BONUS = {

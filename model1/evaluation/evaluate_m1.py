@@ -21,10 +21,9 @@ import pandas as pd
 
 # Support direct execution from dataset_generation/ as well as package imports.
 MODEL1_DIR = os.path.dirname(__file__)
-REPO_ROOT = os.path.dirname(os.path.dirname(MODEL1_DIR))
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(MODEL1_DIR)))
 sys.path.insert(0, REPO_ROOT)
-sys.path.insert(0, MODEL1_DIR)
-from model1 import score_profile
+from model1.api.model1 import score_profile
 
 
 JSON_LIST_COLUMNS = (

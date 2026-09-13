@@ -14,7 +14,7 @@ from sklearn.metrics import average_precision_score, confusion_matrix, roc_auc_s
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, ROOT)
 
-from dataset_generation.model1.evaluate_m1 import load_profiles, run_scoring
+from dataset_generation.model1.evaluation.evaluate_m1 import load_profiles, run_scoring
 
 
 def truthy(value) -> bool:

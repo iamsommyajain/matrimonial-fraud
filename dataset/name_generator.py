@@ -9,7 +9,7 @@ possible so legitimate profiles do not become perfectly clean artifacts.
 
 import random
 
-from constants import NAMES_BY_STYLE
+from .constants import NAMES_BY_STYLE
 
 
 ANGLICIZED_FIRST_NAMES = {

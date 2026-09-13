@@ -10,7 +10,7 @@ learn lifestyle coherence instead of memorizing flat hobby lists.
 
 import random
 
-from constants import (
+from .constants import (
     CITY_METADATA,
     COMMON_HOBBIES,
     HOBBY_CLUSTERS,
