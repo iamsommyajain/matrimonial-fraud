@@ -19,11 +19,14 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-# Support direct execution from dataset_generation/ as well as package imports.
-MODEL1_DIR = os.path.dirname(__file__)
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(MODEL1_DIR)))
-sys.path.insert(0, REPO_ROOT)
-from model1.api.model1 import score_profile
+# Support both package execution and direct execution from dataset_generation/.
+MODEL1_DIR = os.path.dirname(os.path.dirname(__file__))
+DATASET_GENERATION_DIR = os.path.dirname(MODEL1_DIR)
+sys.path.insert(0, DATASET_GENERATION_DIR)
+try:
+    from ..api.model1 import score_profile
+except ImportError:
+    from model1.api.model1 import score_profile
 
 
 JSON_LIST_COLUMNS = (
@@ -768,6 +771,64 @@ def error_cohorts(df: pd.DataFrame, threshold: float) -> dict[str, pd.DataFrame]
     }
 
 
+def print_concise_report(results_df: pd.DataFrame, threshold: float,
+                         precision_target: float, recall_target: float,
+                         fraud_queue_budget: int | None = None) -> None:
+    m1_df = results_df[results_df["is_m1_eval_row"]].copy()
+    functional_y = m1_df["is_functional_fraud"].astype(int).to_numpy()
+    functional_scores = m1_df["functional_risk_score"].to_numpy()
+    functional_pred = functional_scores >= threshold
+    f_prec, f_rec, f_f1, f_tp, f_fp, f_fn, f_tn = precision_recall_f1(
+        functional_y, functional_pred
+    )
+    functional_pr = pr_curve(functional_y, functional_scores)
+    recommendations = threshold_recommendations(
+        functional_pr,
+        precision_target,
+        recall_target,
+        len(m1_df),
+        fraud_queue_budget,
+    )
+
+    print("\n" + "=" * 60)
+    print("MODEL 1 - FUNCTIONAL CONSISTENCY REPORT")
+    print("=" * 60)
+    print(f"Dataset    : {len(results_df):,} profiles")
+    print(f"Threshold  : {threshold:.2f}")
+    print(f"Throughput : {results_df.attrs.get('throughput_per_sec', 0):,.0f} profiles/sec")
+    print("\nPrimary metrics")
+    print(f"  AUC-ROC   : {auc_roc(functional_y, functional_scores):.4f}")
+    print(f"  AUC-PR    : {auc_pr(functional_pr):.4f}")
+    print(f"  Precision : {f_prec:.4f} ({f_tp} TP, {f_fp} FP)")
+    print(f"  Recall    : {f_rec:.4f} ({f_fn} missed)")
+    print(f"  F1 Score  : {f_f1:.4f}")
+    print(f"  Confusion : TN={f_tn}, FP={f_fp}, FN={f_fn}, TP={f_tp}")
+
+    print("\nThreshold recommendations")
+    _print_threshold_row("Best F1", recommendations["best_f1"])
+    _print_threshold_row("Precision target", recommendations["precision_constrained"])
+    _print_threshold_row("Recall target", recommendations["recall_constrained"])
+    _print_threshold_row("Review budget", recommendations["fraud_queue_budget"])
+
+    print("\nRecall by fraud type")
+    fraud_rows = []
+    for fraud_type, subset in results_df[results_df["is_fraud"]].groupby("fraud_type"):
+        caught = int((subset["functional_risk_score"] >= threshold).sum())
+        total = len(subset)
+        fraud_rows.append({
+            "fraud_type": fraud_type,
+            "caught": caught,
+            "total": total,
+            "recall": caught / total if total else 0.0,
+        })
+    if fraud_rows:
+        print(pd.DataFrame(fraud_rows).sort_values("recall").to_string(index=False))
+    else:
+        print("  no fraud rows")
+    print("\nDetailed rule diagnostics are available in the saved CSV.")
+    print("=" * 60)
+
+
 def print_report(results_df: pd.DataFrame, threshold: float,
                  precision_target: float, recall_target: float,
                  fraud_queue_budget: int | None = None) -> None:
@@ -1066,6 +1127,11 @@ def main() -> None:
     parser.add_argument("--precision-target", type=float, default=0.80)
     parser.add_argument("--recall-target", type=float, default=0.80)
     parser.add_argument("--fraud-queue-budget", type=int, default=500)
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print detailed calibration, rule, and error diagnostics",
+    )
     args = parser.parse_args()
 
     profiles = load_profiles(args.dataset, limit=args.limit)
@@ -1097,7 +1163,8 @@ def main() -> None:
             )
     if evaluation_scope == "full_dataset":
         print("WARNING: temporal split files not found; metrics are descriptive full-dataset analysis.")
-    print_report(
+    report_fn = print_report if args.verbose else print_concise_report
+    report_fn(
         results_df,
         args.threshold,
         args.precision_target,

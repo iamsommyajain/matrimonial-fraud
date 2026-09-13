@@ -31,6 +31,10 @@ from .bio_templates import BIO_TEMPLATES, PARTNER_PREF_TEMPLATES
 from .email_features import extract_email_risk_features
 from .email_generator import generate_legitimate_email
 from .hobby_generator import generate_hobbies
+from .legitimate_edge_cases import (
+    apply_legitimate_edge_case,
+    sample_legitimate_edge_case,
+)
 from .regional_demographics import generate_regional_demographics
 
 rng = np.random.default_rng()   # single shared RNG — seed at call site
@@ -1170,6 +1174,9 @@ def generate_legitimate_profile(created_at=None, include_debug_latents=False):
         "fraud_severity":       None,
         "injected_signals":     [],
     }
+
+    edge_case = sample_legitimate_edge_case()
+    apply_legitimate_edge_case(profile, edge_case)
 
     validation_warnings = _validate_profile_consistency(profile)
     if include_debug_latents:

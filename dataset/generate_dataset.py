@@ -294,7 +294,7 @@ def flatten_for_csv(profiles):
     return flat
 
 
-def write_dataset_report(df, output_dir):
+def write_dataset_report(df, output_dir, legitimate_edge_case_counts=None):
     """Write a human-readable summary of the dataset composition."""
     lines = ["=" * 60, "MATRIMONIAL FRAUD DATASET — GENERATION REPORT", "=" * 60]
 
@@ -312,6 +312,11 @@ def write_dataset_report(df, output_dir):
     sv = df["fraud_severity"].fillna("none").value_counts()
     for s, c in sv.items():
         lines.append(f"  {s:<10} {c:>6,}")
+
+    if legitimate_edge_case_counts:
+        lines.append("\nControlled legitimate edge cases:")
+        for scenario, count in sorted(legitimate_edge_case_counts.items()):
+            lines.append(f"  {scenario:<35} {count:>6,}")
 
     lines.append("\nTop injected signals:")
     all_signals = []
@@ -411,7 +416,13 @@ def main(seed=42, output_dir="./output", skip_graph=False):
     generate_and_save_reports(all_profiles, output_dir)
 
     # ── Step 7: Dataset report ────────────────────────────────────────────
-    write_dataset_report(df, output_dir)
+    from collections import Counter
+    edge_case_counts = Counter(
+        profile.get("_legitimate_edge_case")
+        for profile in all_profiles
+        if profile.get("_legitimate_edge_case")
+    )
+    write_dataset_report(df, output_dir, edge_case_counts)
 
     print(f"\nDataset generation complete. Files in: {output_dir}/")
     return df
