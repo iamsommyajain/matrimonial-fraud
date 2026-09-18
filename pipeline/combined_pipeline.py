@@ -17,11 +17,11 @@ DATASET_ROOT = os.path.dirname(os.path.dirname(__file__))
 REPO_ROOT = os.path.dirname(DATASET_ROOT)
 sys.path.insert(0, REPO_ROOT)
 
-from dataset_generation.model1.api.model1 import score_profile
-from dataset_generation.model2.m2a_text.run import _target_labels
-from dataset_generation.model2.m2a_text.audit import load_and_validate_profiles, save_audit
-from dataset_generation.model2.m2a_text.anomaly import compute_text_anomaly_scores
-from dataset_generation.model2.m2a_text.features import fit_tfidf_vectorizer, load_split_or_full, save_vectorizer, transform_text
+from model1.api.model1 import score_profile
+from model2.m2a_text.run import _target_labels
+from model2.m2a_text.audit import load_and_validate_profiles, save_audit
+from model2.m2a_text.anomaly import compute_text_anomaly_scores
+from model2.m2a_text.features import fit_tfidf_vectorizer, load_split_or_full, save_vectorizer, transform_text
 
 
 def _truthy(value) -> bool:
@@ -147,6 +147,7 @@ def main() -> None:
     parser.add_argument("--n_neighbors", type=int, default=10)
     parser.add_argument("--max_features", type=int, default=20000)
     parser.add_argument("--models", type=str, default="m1,m2a")
+    parser.add_argument("--m4_scores", default=None)
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -154,6 +155,8 @@ def main() -> None:
     print(f"Models     : {args.models}", flush=True)
     print(f"Input      : {args.input}", flush=True)
     print(f"Output dir : {args.output_dir}", flush=True)
+    has_m4 = bool(args.m4_scores) and os.path.exists(args.m4_scores)
+    print(f"M4 scores  : {args.m4_scores if has_m4 else 'not provided, skipping M4 in fusion'}", flush=True)
 
     df = load_and_validate_profiles(args.input)
     split_artifacts = load_split_or_full(args.input)
@@ -175,7 +178,13 @@ def main() -> None:
     combined = df[["profile_id", "fraud_type", "is_fraud"]].copy()
     combined = combined.merge(m1_df, on="profile_id", how="left")
     combined = combined.merge(m2a_df[["profile_id", "text_risk", "m2a_target"]], on="profile_id", how="left")
-    combined = fuse_scores(combined, ["m1_score", "text_risk"])
+    score_cols = ["m1_score", "text_risk"]
+    if has_m4:
+        m4_df = pd.read_csv(args.m4_scores)[["profile_id", "community_trust_risk"]]
+        combined = combined.merge(m4_df, on="profile_id", how="left")
+        combined["community_trust_risk"] = combined["community_trust_risk"].fillna(0.0)
+        score_cols.append("community_trust_risk")
+    combined = fuse_scores(combined, score_cols)
     combined["combined_rank"] = combined["combined_risk"].rank(method="first", ascending=False)
 
     evaluation_df = combined
@@ -207,7 +216,7 @@ def main() -> None:
     combined_path = os.path.join(args.output_dir, "combined_scores.csv")
     combined.to_csv(combined_path, index=False)
 
-    report = build_combined_report(combined, args.output_dir, runtime, ["m1_score", "text_risk"], evaluation_df=evaluation_df, threshold=fusion_threshold)
+    report = build_combined_report(combined, args.output_dir, runtime, score_cols, evaluation_df=evaluation_df, threshold=fusion_threshold)
     print(report)
     print(f"Saved combined scores to {combined_path}")
     print(f"Saved combined report to {os.path.join(args.output_dir, 'combined_report.txt')}")

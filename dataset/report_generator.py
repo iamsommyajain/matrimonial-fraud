@@ -109,6 +109,31 @@ DEFAULT_REPORT_WEIGHTS = {
     "harassment":             0.03,
 }
 
+# Probability that a fraud profile gets reported AT ALL. Victims don't always
+# notice, don't always bother reporting, or the platform never surfaces a
+# reporting prompt to them. Without this, every fraud profile is guaranteed
+# >=1 report, which makes "has a report" a near-perfect proxy for the label
+# and defeats the point of a credibility-weighted trust model. Subtler fraud
+# (template bios, generic functional inconsistency) gets reported less than
+# fraud with a direct financial victim.
+REPORT_PROBABILITY_BY_FRAUD_TYPE = {
+    "financial_scam":    0.82,
+    "coordinated_ring":  0.68,
+    "multi":             0.72,
+    "functional":        0.55,
+    "template_bio":      0.45,
+    "image_theft":       0.60,
+}
+DEFAULT_REPORT_PROBABILITY = 0.60
+
+# Legitimate profiles that attract at least one false/noise report. A small
+# slice of those get MULTIPLE false reports (jealous ex, rejected match,
+# competitor) rather than exactly one — real overlap with the fraud
+# distribution that a trust model has to be robust against, not an
+# artificially clean 0-or-1 split.
+LEGIT_FALSE_REPORT_RATE = 0.06
+LEGIT_MULTI_REPORT_RATE = 0.15  # of those flagged, fraction that get 2-3 reports instead of 1
+
 RESOLUTION_BY_N_REPORTS = {
     # (min_reports, max_reports) → (resolution, outcome) pool
     (1, 2):  [("pending", "none"), ("pending", "none"), ("dismissed", "none")],
@@ -194,8 +219,11 @@ def generate_reports_for_profile(
     """
     Generate all reports for a single profile.
 
-    Fraud profiles  → 3-10 reports from legitimate users
-    Legitimate      → 0-1 false reports (noise, ~5% of legitimate profiles)
+    Fraud profiles  → reported with a fraud-type-dependent probability
+                       (not guaranteed); when reported, 1-10 reports depending
+                       on fraud type, so early/weak-signal cases exist too.
+    Legitimate      → ~6% get false/noise reports; most get 1, a minority get
+                       2-3 (brigade-style false accusations).
 
     Returns a list of report dicts (may be empty).
     """
@@ -208,21 +236,27 @@ def generate_reports_for_profile(
 
     # ── Determine how many reports this profile attracts ─────────────────
     if not is_fraud:
-        # 5% of legitimate profiles get 1 false/noise report
-        if random.random() > 0.05:
+        if random.random() > LEGIT_FALSE_REPORT_RATE:
             return []
-        n_reports = 1
+        n_reports = random.randint(2, 3) if random.random() < LEGIT_MULTI_REPORT_RATE else 1
     else:
-        # Fraud type influences report volume
+        # Not every fraud profile gets reported — victims don't always notice
+        # or bother filing a report.
+        report_probability = REPORT_PROBABILITY_BY_FRAUD_TYPE.get(fraud_type, DEFAULT_REPORT_PROBABILITY)
+        if random.random() > report_probability:
+            return []
+
+        # Fraud type influences report volume; lower bound includes 1 so a
+        # freshly-reported profile with only weak, early evidence exists too.
         base_counts = {
-            "financial_scam":    (5, 10),
-            "coordinated_ring":  (4, 9),
-            "multi":             (4, 9),
-            "functional":        (2, 6),
-            "template_bio":      (2, 5),
-            "image_theft":       (2, 5),
+            "financial_scam":    (2, 10),
+            "coordinated_ring":  (2, 9),
+            "multi":             (2, 9),
+            "functional":        (1, 6),
+            "template_bio":      (1, 5),
+            "image_theft":       (1, 5),
         }
-        lo, hi = base_counts.get(fraud_type, (2, 6))
+        lo, hi = base_counts.get(fraud_type, (1, 6))
         n_reports = random.randint(lo, hi)
 
     # ── Determine resolution and outcome (same for all reports on profile) 

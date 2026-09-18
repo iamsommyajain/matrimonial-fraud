@@ -12,11 +12,14 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from dataset_generation.model2.m2a_text.evaluate import build_concise_report, build_report
-from dataset_generation.model2.m2a_text.anomaly import compute_text_anomaly_scores
-from dataset_generation.model2.m2a_text.audit import load_and_validate_profiles, save_audit
-from dataset_generation.model2.m2a_text.features import fit_tfidf_vectorizer, load_split_or_full, save_vectorizer, transform_text
-
+# from dataset_generation.model2.m2a_text.evaluate import build_concise_report, build_report
+# from dataset_generation.model2.m2a_text.anomaly import compute_text_anomaly_scores
+# from dataset_generation.model2.m2a_text.audit import load_and_validate_profiles, save_audit
+# from dataset_generation.model2.m2a_text.features import fit_tfidf_vectorizer, load_split_or_full, save_vectorizer, transform_text
+from model2.m2a_text.evaluate import build_concise_report, build_report
+from model2.m2a_text.anomaly import compute_text_anomaly_scores
+from model2.m2a_text.audit import load_and_validate_profiles, save_audit
+from model2.m2a_text.features import fit_tfidf_vectorizer, load_split_or_full, save_vectorizer, transform_text
 
 def _target_labels(df: pd.DataFrame) -> pd.Series:
     fraud_type = df["fraud_type"].fillna("")
