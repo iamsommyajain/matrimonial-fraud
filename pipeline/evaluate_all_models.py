@@ -14,7 +14,7 @@ from sklearn.metrics import average_precision_score, confusion_matrix, roc_auc_s
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, ROOT)
 
-from dataset_generation.model1.evaluation.evaluate_m1 import load_profiles, run_scoring
+from model1.evaluation.evaluate_m1 import load_profiles, run_scoring
 
 
 def truthy(value) -> bool:
@@ -82,9 +82,13 @@ def main():
     parser.add_argument("--profiles", required=True)
     parser.add_argument("--m2a_scores", default="./model2/outputs/m2a_scores.csv")
     parser.add_argument("--m2b_scores", default="./model2/outputs/m2b_scores.csv")
+    parser.add_argument("--m4_scores", default="./model4/outputs/m4_scores.csv")
     parser.add_argument("--output_dir", default="./pipeline/outputs")
     args = parser.parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
+
+    has_m4 = bool(args.m4_scores) and os.path.exists(args.m4_scores)
+    print(f"M4 scores  : {args.m4_scores if has_m4 else 'not found, skipping M4 in fusion'}", flush=True)
 
     profile_df = pd.read_csv(args.profiles)
     split_dir = os.path.join(os.path.dirname(args.profiles), "splits")
@@ -100,7 +104,13 @@ def main():
     m2a = pd.read_csv(args.m2a_scores)[["profile_id", "text_risk"]]
     m2b = pd.read_csv(args.m2b_scores)[["profile_id", "behavior_risk"]]
     scores = data.merge(m1, on="profile_id").merge(m2a, on="profile_id").merge(m2b, on="profile_id")
-    scores["fusion_risk"] = 1.0 - (1.0 - scores["functional_risk_score"]) * (1.0 - scores["text_risk"]) * (1.0 - scores["behavior_risk"])
+    if has_m4:
+        m4 = pd.read_csv(args.m4_scores)[["profile_id", "community_trust_risk"]]
+        scores = scores.merge(m4, on="profile_id", how="left")
+    else:
+        scores["community_trust_risk"] = 0.0
+    scores["community_trust_risk"] = scores["community_trust_risk"].fillna(0.0)
+    scores["fusion_risk"] = 1.0 - (1.0 - scores["functional_risk_score"]) * (1.0 - scores["text_risk"]) * (1.0 - scores["behavior_risk"]) * (1.0 - scores["community_trust_risk"])
     scores.to_csv(os.path.join(args.output_dir, "all_model_scores.csv"), index=False)
 
     val_ids, test_ids = set(val["profile_id"]), set(test["profile_id"])
@@ -111,15 +121,21 @@ def main():
         "M1-secondary": "m1_secondary",
         "M2-A": "m2a_primary",
         "M2-B": "m2b_primary",
-        "Fusion": "all_fraud",
     }
     score_columns = {
         "M1-primary": "functional_risk_score",
         "M1-secondary": "functional_risk_score",
         "M2-A": "text_risk",
         "M2-B": "behavior_risk",
-        "Fusion": "fusion_risk",
     }
+    if has_m4:
+        # M4 targets fraud generically (community reports aren't tied to one
+        # sub-type), unlike M1/M2's primary targets, so it's evaluated
+        # against the same all_fraud target as Fusion.
+        model_targets["M4"] = "all_fraud"
+        score_columns["M4"] = "community_trust_risk"
+    model_targets["Fusion"] = "all_fraud"
+    score_columns["Fusion"] = "fusion_risk"
     rows = []
     attribution = []
     for model, target_col in model_targets.items():

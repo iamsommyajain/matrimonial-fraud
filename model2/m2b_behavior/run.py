@@ -11,10 +11,10 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from dataset_generation.model2.m2b_behavior.audit import load_and_validate_profiles, save_behavior_audit
-from dataset_generation.model2.m2b_behavior.anomaly import score_behavior
-from dataset_generation.model2.m2b_behavior.features import build_behavior_features, preprocess_behavior_features
-from dataset_generation.model2.m2b_behavior.evaluate import build_concise_report, build_report
+from model2.m2b_behavior.audit import load_and_validate_profiles, save_behavior_audit
+from model2.m2b_behavior.anomaly import score_behavior
+from model2.m2b_behavior.features import build_behavior_features, preprocess_behavior_features
+from model2.m2b_behavior.evaluate import build_concise_report, build_report
 
 
 def _split_dir_from_profiles(profiles_path: str) -> str | None:
