@@ -31,7 +31,13 @@ Design principles:
 import random
 import numpy as np
 from datetime import datetime, timedelta
-from uuid import uuid4
+from uuid import UUID
+
+
+def _seeded_report_id() -> str:
+    # Same reproducibility fix as legitimate_generator.py's profile_id:
+    # uuid.uuid4() draws from os.urandom(), ignoring random.seed().
+    return str(UUID(int=random.getrandbits(128), version=4))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -297,7 +303,7 @@ def generate_reports_for_profile(
         )
 
         reports.append({
-            "report_id":                str(uuid4()),
+            "report_id":                _seeded_report_id(),
             "reported_profile_id":      reported_id,
             "reporter_profile_id":      reporter_id,
             "report_type":              report_type,
