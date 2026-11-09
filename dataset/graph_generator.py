@@ -466,12 +466,23 @@ def build_interaction_graph(profiles_df: pd.DataFrame, seed: int | None = 42):
                 most_recent_positions = np.argsort(legit_created)[-fallback_n:]
                 recency_mask = np.zeros(len(legit_created), dtype=bool)
                 recency_mask[most_recent_positions] = True
-            chosen = _weighted_target_positions(
+            # ~65% new accounts / ~35% older accounts — a softer, less
+            # mechanically-perfect isolation signature than contacting new
+            # accounts exclusively.
+            n_new = int(round(n_targets * 0.65))
+            n_old = n_targets - n_new
+            chosen_new = _weighted_target_positions(
                 rng, legit_ages, legit_gender_codes, legit_city_codes, legit_state_codes,
-                k=n_targets, shortlist_size=300,
+                k=n_new, shortlist_size=300,
                 w_age=0.0, w_city=0.0, w_gender=0.0,
                 eligible_mask=recency_mask,
             )
+            chosen_old = _weighted_target_positions(
+                rng, legit_ages, legit_gender_codes, legit_city_codes, legit_state_codes,
+                k=n_old, shortlist_size=250,
+                w_age=0.3, w_city=0.3, w_gender=0.3,
+            )
+            chosen = np.concatenate([chosen_new, chosen_old])
             topology = "isolation_pattern"
         else:
             chosen = _weighted_target_positions(
@@ -480,10 +491,22 @@ def build_interaction_graph(profiles_df: pd.DataFrame, seed: int | None = 42):
                 w_age=0.3, w_city=0.3, w_gender=0.3,
             )
             topology = "other_fraud_generic"
+        # max_days=150 and a ~50% reply chance match the legit-legit loop's
+        # own defaults exactly (section 1 above) — these profiles' edges
+        # should otherwise look like ordinary legit traffic in timing and
+        # reply rate; a single-feature check found response_rate alone was
+        # AUC~0.96 separable before this fix, purely because these edges
+        # never got a reciprocal reply while legit ones do ~50-92% of the
+        # time — a generator artifact, not a real fraud signal.
         for tpos in chosen:
             tgt_pid = legit_ids[tpos]
-            ts = _edge_timestamp(rng, o_created, records[tgt_pid]["created_at_dt"], cap_date, max_days=90)
-            _add(oid, tgt_pid, int(rng.integers(1, 11)), bool(rng.random() < 0.4), ts, True, topology)
+            tgt_created = records[tgt_pid]["created_at_dt"]
+            msg_count = int(rng.integers(1, 11))
+            ts = _edge_timestamp(rng, o_created, tgt_created, cap_date, max_days=150)
+            _add(oid, tgt_pid, msg_count, bool(rng.random() < 0.4), ts, True, topology)
+            if rng.random() < 0.5:
+                reply_ts = ts + pd.Timedelta(hours=float(rng.uniform(1, 72)))
+                _add(tgt_pid, oid, int(rng.integers(1, msg_count + 1)), False, min(reply_ts, cap_date), False, f"{topology}_reply")
 
         # Degree-overlap fix: these fraud profiles would otherwise have
         # near-zero in-degree (only the rare organic reply), sitting well
@@ -499,8 +522,13 @@ def build_interaction_graph(profiles_df: pd.DataFrame, seed: int | None = 42):
         )
         for spos in sender_positions:
             sender_pid = legit_ids[spos]
-            ts = _edge_timestamp(rng, records[sender_pid]["created_at_dt"], o_created, cap_date, max_days=90)
-            _add(sender_pid, oid, int(rng.integers(1, 8)), bool(rng.random() < 0.3), ts, True, "legit_to_fraud_inbound")
+            sender_created = records[sender_pid]["created_at_dt"]
+            msg_count = int(rng.integers(1, 8))
+            ts = _edge_timestamp(rng, sender_created, o_created, cap_date, max_days=150)
+            _add(sender_pid, oid, msg_count, bool(rng.random() < 0.3), ts, True, "legit_to_fraud_inbound")
+            if rng.random() < 0.5:
+                reply_ts = ts + pd.Timedelta(hours=float(rng.uniform(1, 72)))
+                _add(oid, sender_pid, int(rng.integers(1, msg_count + 1)), False, min(reply_ts, cap_date), False, "legit_to_fraud_inbound_reply")
 
     # Add all edges to the graph
     for e in edges:

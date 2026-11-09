@@ -670,6 +670,15 @@ def _generate_lifestyle_profile(name, age, gender, city, marital_status, educati
 
 
 def _generate_behavioral_profile(created_at, latent_traits, age, profession):
+    # NOTE: messages_sent/messages_received/unique_contacts below are
+    # self-reported activity counters sampled independently from latent
+    # traits, generated before the interaction graph exists (graph_generator.py
+    # builds edges.csv in a separate later step from the finished profile
+    # table). They do not reconcile with the graph's actual per-node message
+    # totals (cross-checked correlation ~0.55 for sent, ~0.07 for received,
+    # on a different scale) — this is a known, documented limitation rather
+    # than a bug to silently fix; see model2/m2b_behavior/features.py and
+    # model5/graph_interaction/features.py for how each model treats them.
     timestamps = _generate_timestamps(created_at)
     base_messages = 28 if latent_traits["tech_savviness"] > 0.65 else 20
     activity_multiplier = 0.55 + latent_traits["activity_level"]
