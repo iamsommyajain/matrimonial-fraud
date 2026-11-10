@@ -20,7 +20,11 @@ from ..feature_extraction.feature_extractor import extract_m1_features
 from ..scoring.scorer import compute_functional_risk_score_detailed
 
 
-def score_profile(profile: dict, include_profiling: bool = False) -> dict:
+def score_profile(
+    profile: dict,
+    include_profiling: bool = False,
+    configured_weights: dict[str, float] | None = None,
+) -> dict:
     """
     Score a single profile for functional consistency.
 
@@ -43,7 +47,11 @@ def score_profile(profile: dict, include_profiling: bool = False) -> dict:
     extraction_ms = (time.perf_counter() - extract_started) * 1000
 
     score_started = time.perf_counter()
-    scored = compute_functional_risk_score_detailed(features, collect_profiling=include_profiling)
+    scored = compute_functional_risk_score_detailed(
+        features,
+        configured_weights=configured_weights,
+        collect_profiling=include_profiling,
+    )
     scoring_ms = (time.perf_counter() - score_started) * 1000
 
     output = {

@@ -64,7 +64,10 @@ def load_profiles(csv_path: str, limit: int | None = None) -> list[dict]:
     return df.to_dict(orient="records")
 
 
-def run_scoring(profiles: list[dict]) -> pd.DataFrame:
+def run_scoring(
+    profiles: list[dict],
+    configured_weights: dict[str, float] | None = None,
+) -> pd.DataFrame:
     print(f"Scoring {len(profiles):,} profiles through M1...")
     rows = []
     start = time.perf_counter()
@@ -75,7 +78,11 @@ def run_scoring(profiles: list[dict]) -> pd.DataFrame:
             print(f"  {i:,} / {len(profiles):,} done ({i / elapsed:,.0f} profiles/sec)...")
 
         t0 = time.perf_counter()
-        result = score_profile(profile, include_profiling=True)
+        result = score_profile(
+            profile,
+            include_profiling=True,
+            configured_weights=configured_weights,
+        )
         latency_ms = (time.perf_counter() - t0) * 1000
         breakdown = result["score_breakdown"]
         effective = breakdown["effective_scores"]
@@ -1121,7 +1128,13 @@ def _formatters() -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate Model 1 functional consistency")
     parser.add_argument("--dataset", type=str, default="../output/profiles.csv")
-    parser.add_argument("--threshold", type=float, default=0.45)  # Phase 1 optimal: 55.1% precision, 34.9% recall
+    parser.add_argument("--threshold", type=float, default=None)
+    parser.add_argument(
+        "--weights",
+        type=str,
+        default=None,
+        help="JSON file produced by optimize_weights.py",
+    )
     parser.add_argument("--save", type=str, default=None)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--precision-target", type=float, default=0.80)
@@ -1134,8 +1147,20 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    configured_weights = None
+    optimized_threshold = None
+    if args.weights:
+        with open(args.weights, encoding="utf-8") as file:
+            optimized_config = json.load(file)
+        configured_weights = optimized_config.get("weights")
+        optimized_threshold = optimized_config.get("threshold")
+        if not isinstance(configured_weights, dict) or not configured_weights:
+            raise SystemExit("Weights JSON must contain a non-empty 'weights' object")
+        if optimized_threshold is not None:
+            optimized_threshold = float(optimized_threshold)
+
     profiles = load_profiles(args.dataset, limit=args.limit)
-    results_df = run_scoring(profiles)
+    results_df = run_scoring(profiles, configured_weights=configured_weights)
 
     # M1 is deterministic, so it has no fit stage. When generated temporal
     # splits are available, select its threshold on validation and report only
@@ -1152,9 +1177,10 @@ def main() -> None:
         test_results = results_df[results_df["profile_id"].isin(test_ids)]
         if not val_results.empty and not test_results.empty:
             val_curve = pr_curve(val_results["is_functional_fraud"].astype(int), val_results["functional_risk_score"])
-            args.threshold = float(
-                val_curve.sort_values(["f1", "recall", "precision"], ascending=False).iloc[0]["threshold"]
-            )
+            if args.threshold is None:
+                args.threshold = optimized_threshold if optimized_threshold is not None else float(
+                    val_curve.sort_values(["f1", "recall", "precision"], ascending=False).iloc[0]["threshold"]
+                )
             results_df = test_results
             evaluation_scope = "temporal_test"
             print(
@@ -1163,6 +1189,8 @@ def main() -> None:
             )
     if evaluation_scope == "full_dataset":
         print("WARNING: temporal split files not found; metrics are descriptive full-dataset analysis.")
+    if args.threshold is None:
+        args.threshold = optimized_threshold if optimized_threshold is not None else 0.45
     report_fn = print_report if args.verbose else print_concise_report
     report_fn(
         results_df,

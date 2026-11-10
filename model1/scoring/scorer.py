@@ -56,20 +56,25 @@ def compute_pair_scores(features: dict) -> dict:
 }
 
 
-def compute_functional_risk_score_detailed(features: dict, collect_profiling: bool = False) -> dict:
+def compute_functional_risk_score_detailed(
+    features: dict,
+    collect_profiling: bool = False,
+    configured_weights: dict[str, float] | None = None,
+) -> dict:
     if collect_profiling:
         rule_results, rule_runtimes_ms = execute_rules_profiled(features)
     else:
         rule_results = execute_rules(features)
         rule_runtimes_ms = {}
-    configured_weights = {
-        spec.name: spec.configured_weight
-        for spec in RULE_REGISTRY
-    }
+    configured_weights = (
+        dict(RULE_WEIGHTS)
+        if configured_weights is None
+        else dict(configured_weights)
+    )
 
     raw_contributions, activated_contributions = build_rule_contributions(
         rule_results,
-        RULE_WEIGHTS
+        configured_weights,
     )
 
     effective_scores, fusion_diagnostics = fuse_contributions(activated_contributions)
