@@ -75,6 +75,17 @@ python -m dataset_generation.model1.evaluation.evaluate_m1 --dataset dataset_gen
 
 The evaluator selects a threshold on the validation split when available and reports metrics on the temporal test split. Without split files, it reports descriptive full-dataset metrics.
 
+## Active weight configuration
+
+Model 1 uses the optimized rule weights from `config.py` by default. They were
+selected with bounded log-random search using 1,000 trials and seed 42 against
+the temporal validation split, targeting 80% precision. The selected validation
+decision threshold is `0.3803`.
+
+The original heuristic weights remain available as `BASELINE_RULE_WEIGHTS` for
+comparisons or rollback. Callers can also pass a custom `configured_weights`
+mapping to `score_profile()` without changing the active default.
+
 ## Scope
 
 M1 primarily targets `functional` fraud and partially targets `multi` fraud. It is not intended to be the primary detector for template-bio, coordinated-ring, or financial-scam fraud; those signals belong to the other models.

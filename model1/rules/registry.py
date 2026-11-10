@@ -24,6 +24,7 @@ from ..config import (
     MINIMUM_SIGNAL_ACTIVATION,
     PAIR_FLAG_THRESHOLD,
     RISK_THRESHOLDS,
+    RULE_WEIGHTS,
     SATURATION_ALPHA,
     SCORE_CAP,
 )
@@ -63,7 +64,7 @@ def compute_functional_risk_score_detailed(features: dict, collect_profiling: bo
     else:
         rule_results = compute_rule_results(features)
         rule_runtimes_ms = {}
-    configured_weights = {spec.name: spec.configured_weight for spec in RULE_REGISTRY}
+    configured_weights = dict(RULE_WEIGHTS)
 
     effective_scores, fusion_diagnostics = _compute_fused_contributions(
         rule_results, configured_weights

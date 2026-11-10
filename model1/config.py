@@ -138,8 +138,8 @@ FEATURE_CRITICALITY = {
     "optional": frozenset({"hobbies", "partner_preferences", "about_family"}),
 }
 
-RULE_WEIGHTS = {
-    "age_experience": 0.22,  # Increased from 0.18 (high-quality rule with good precision)
+BASELINE_RULE_WEIGHTS = {
+    "age_experience": 0.24,  # Increased from 0.18 (high-quality rule with good precision)
     "age_education": 0.10,
     "education_profession": 0.18,  # Increased from 0.15 (excellent separation: 20.5x odds ratio)
     "profession_email": 0.08,
@@ -157,6 +157,40 @@ RULE_WEIGHTS = {
     "interaction_income_behavior": 0.10,
     "interaction_sparse_inconsistency": 0.18,  # Increased from 0.14 (excellent quality)
 }
+
+# Selected by bounded log-random search on the temporal validation split.
+# Keep the baseline above available for controlled comparisons and rollback.
+OPTIMIZED_RULE_WEIGHTS = {
+    "age_experience": 0.32057024942407153,
+    "age_education": 0.04407561398465492,
+    "education_profession": 0.5690292228471476,
+    "profession_email": 0.0924271802419496,
+    "salary_experience": 0.17172825538809938,
+    "salary_profession": 0.09337825934106396,
+    "education_salary": 0.09880099090501636,
+    "company_income": 0.03384555365548552,
+    "email_quality": 0.05162874769009032,
+    "behavioral_integrity": 0.07253217353922845,
+    "textual_quality": 0.039699179011640016,
+    "contextual_missingness": 0.0525770401222184,
+    "interaction_salary_experience": 0.8355796466434436,
+    "interaction_education_income_trajectory": 0.10107773294777878,
+    "interaction_text_email": 0.3077927249171546,
+    "interaction_income_behavior": 0.31543046279744624,
+    "interaction_sparse_inconsistency": 0.1257725068915329,
+}
+
+OPTIMIZED_THRESHOLD = 0.3803
+OPTIMIZED_CONFIG_METADATA = {
+    "objective": "recall_at_precision_0.80",
+    "method": "bounded_log_random_search",
+    "trials": 1000,
+    "seed": 42,
+}
+
+# Optimized weights are the production default. Callers can still pass
+# configured_weights explicitly to use a baseline or experimental profile.
+RULE_WEIGHTS = OPTIMIZED_RULE_WEIGHTS
 
 RULE_EVIDENCE_WEIGHTS = {
     "age_experience": 0.92,
@@ -178,19 +212,6 @@ RULE_EVIDENCE_WEIGHTS = {
     "interaction_sparse_inconsistency": 0.78,
 }
 
-
-# def expected_salary_range_by_experience(years_exp: int | float | None) -> tuple[float, float]:
-#     if years_exp is None:
-#         return (0.0, 500.0)
-#     if years_exp <= 1:
-#         return (2.0, 15.0)
-#     if years_exp <= 3:
-#         return (3.0, 20.0)
-#     if years_exp <= 5:
-#         return (6.0, 28.0)
-#     if years_exp <= 10:
-#         return (12.0, 45.0)
-#     return (18.0, 90.0)
 
 def expected_salary_range_by_experience(years_exp: int | float | None) -> tuple[float, float]:
     if years_exp is None:

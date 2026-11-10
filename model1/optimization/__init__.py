@@ -1,0 +1,1 @@
+"""Tools for fitting Model 1 configuration against labeled temporal splits."""
