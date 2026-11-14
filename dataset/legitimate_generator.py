@@ -18,7 +18,7 @@ This ensures M1 (functional consistency model) has a genuine signal to detect:
 import numpy as np
 import random
 from datetime import datetime, timedelta
-from uuid import uuid4
+from uuid import UUID
 
 from .constants import (
     GENDERS, GENDER_WEIGHTS,
@@ -37,8 +37,6 @@ from .legitimate_edge_cases import (
 )
 from .regional_demographics import generate_regional_demographics
 
-rng = np.random.default_rng()   # single shared RNG — seed at call site
-
 # ── Additional demographic attributes ─────────────────────────────
 
 MARITAL_STATUS_DIST = {
@@ -54,10 +52,25 @@ DEVICE_TYPE_DIST = {
     "web": 0.05,
 }
 
+def _seeded_profile_id() -> str:
+    # uuid.uuid4() draws from os.urandom(), ignoring random.seed() entirely —
+    # every profile_id would differ across runs even with a fixed seed.
+    # Building the UUID from random.getrandbits() instead routes it through
+    # the seeded global random module, making it reproducible.
+    return str(UUID(int=random.getrandbits(128), version=4))
+
+
 def _sample_from_dist(dist):
+    # Route through the legacy np.random global (seeded by np.random.seed()
+    # in generate_dataset.py's main()), not an independent np.random.default_rng()
+    # instance — a standalone Generator() created at module-import time, with
+    # no seed, draws from OS entropy and is never reset by --seed. It was the
+    # root cause of every profile's marital_status and device_type (and
+    # everything downstream that branches on them, e.g. bio text) being
+    # non-reproducible across runs even with the same --seed.
     keys = list(dist.keys())
     probs = list(dist.values())
-    return rng.choice(keys, p=probs)
+    return np.random.choice(keys, p=probs)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -657,6 +670,15 @@ def _generate_lifestyle_profile(name, age, gender, city, marital_status, educati
 
 
 def _generate_behavioral_profile(created_at, latent_traits, age, profession):
+    # NOTE: messages_sent/messages_received/unique_contacts below are
+    # self-reported activity counters sampled independently from latent
+    # traits, generated before the interaction graph exists (graph_generator.py
+    # builds edges.csv in a separate later step from the finished profile
+    # table). They do not reconcile with the graph's actual per-node message
+    # totals (cross-checked correlation ~0.55 for sent, ~0.07 for received,
+    # on a different scale) — this is a known, documented limitation rather
+    # than a bug to silently fix; see model2/m2b_behavior/features.py and
+    # model5/graph_interaction/features.py for how each model treats them.
     timestamps = _generate_timestamps(created_at)
     base_messages = 28 if latent_traits["tech_savviness"] > 0.65 else 20
     activity_multiplier = 0.55 + latent_traits["activity_level"]
@@ -1113,7 +1135,7 @@ def generate_legitimate_profile(created_at=None, include_debug_latents=False):
     # ── Assemble ─────────────────────────────────────────────────────────
     profile = {
         # Identity
-        "profile_id":           str(uuid4()),
+        "profile_id":           _seeded_profile_id(),
         "name":                 name,
         "age":                  age,
         "gender":               gender,

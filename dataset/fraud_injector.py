@@ -482,5 +482,5 @@ def inject_multi_signal_fraud(profile, shared_template_idx=None):
     p["is_fraud"]         = True
     p["fraud_type"]       = "multi"
     p["fraud_severity"]   = "high"
-    p["injected_signals"] = list(set(all_signals))  # deduplicate
+    p["injected_signals"] = list(dict.fromkeys(all_signals))  # dedupe, order-stable (not hash-seed-dependent like set())
     return p

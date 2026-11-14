@@ -1,4 +1,17 @@
-"""Behavioral feature engineering for Model 2-B."""
+"""Behavioral feature engineering for Model 2-B.
+
+NOTE on messages_sent/messages_received: these are independent self-reported
+activity counters from the profile generator (legitimate_generator.py),
+generated before and separately from the interaction graph (edges.csv, built
+later in dataset/graph_generator.py for Model 5). They are NOT derived from
+and do not reconcile with the actual simulated edges — cross-checked
+correlation with edge-derived message totals is ~0.55 (sent) and ~0.07
+(received), on very different scales. Treat them as a rough self-reported
+activity-level signal for M2-B, not as ground truth for "how many messages
+this profile actually sent/received in the graph" — that quantity lives in
+Model 5's node features (features.py in model5/graph_interaction/), computed
+directly from edges.csv.
+"""
 
 from __future__ import annotations
 

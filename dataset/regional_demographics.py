@@ -46,7 +46,13 @@ def normalize(dist):
 
 
 def blend_distributions(primary_dist, secondary_dist, secondary_weight):
-    keys = set(primary_dist) | set(secondary_dist)
+    # dict.fromkeys (not set() | set()) — set iteration order for string
+    # keys depends on PYTHONHASHSEED (randomized per process by default), so
+    # the resulting dict's key order — and therefore which value
+    # random.choices() in weighted_pick() actually lands on for a given
+    # seeded draw — silently changed across runs/processes even with the
+    # same --seed. dict.fromkeys preserves a fixed, insertion-based order.
+    keys = list(dict.fromkeys(list(primary_dist) + list(secondary_dist)))
     primary_weight = 1 - secondary_weight
     blended = {
         key: (

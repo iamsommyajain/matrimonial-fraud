@@ -29,6 +29,7 @@ Dataset composition (50,000 profiles):
 """
 
 import argparse
+import calendar
 import json
 import os
 import random
@@ -83,6 +84,11 @@ N_RING_HUBS      = 10
 N_RING_RELAYS    = 50
 N_RING_SATELLITES= N_RING - N_RING_HUBS - N_RING_RELAYS  # 440
 
+# 10 rings spread across all 6 months (not confined to train) — 1 ring each
+# in months 1-4, 3 in month 5 (val), 3 in month 6 (test) — so M5 has genuine
+# held-out ring examples in both validation and test instead of zero.
+RING_MONTH_ASSIGNMENTS = [1, 2, 3, 4, 5, 5, 5, 6, 6, 6]
+
 # Simulation period: 6 months for temporal split
 SIM_START = datetime(2024, 1, 1)
 SIM_END   = datetime(2024, 6, 30)
@@ -103,6 +109,21 @@ def random_created_at(month_range=(1, 6)):
     hour       = random.randint(0, 23)
     minute     = random.randint(0, 59)
     return SIM_START + timedelta(days=day_offset, hours=hour, minutes=minute)
+
+
+def calendar_month_created_at(year: int, month: int, margin_days: int = 2):
+    """A random timestamp strictly inside a given calendar month (with a
+    margin so a few hours of ring jitter can never push it into the next/
+    previous month). Used for ring creation so a ring's month assignment is
+    exact — unlike random_created_at's 30-day-block approximation, which can
+    blur across an actual calendar-month boundary.
+    """
+    last_day = calendar.monthrange(year, month)[1]
+    lo, hi = 1 + margin_days, max(1 + margin_days, last_day - margin_days)
+    day = random.randint(lo, hi)
+    hour = random.randint(0, 23)
+    minute = random.randint(0, 59)
+    return datetime(year, month, day, hour, minute)
 
 
 def ring_created_at(base_time, jitter_hours=6):
@@ -174,19 +195,22 @@ def generate_ring_batch(n_hubs, n_relays, n_satellites):
     Rings are created in batches with tight timestamp clustering —
     this is the key graph signal M5 should learn.
 
-    We create 5 distinct rings, each with:
-        2 hubs + 10 relays + ~88 satellites
+    We create len(RING_MONTH_ASSIGNMENTS) distinct rings (10), each with:
+        1 hub + 5 relays + 44 satellites
+    spread across months 1-6 per RING_MONTH_ASSIGNMENTS, so coordinated_ring
+    profiles — and specifically satellites — actually appear in the
+    validation and test splits instead of only ever landing in train.
     """
     profiles = []
-    n_rings = 5
+    n_rings = len(RING_MONTH_ASSIGNMENTS)
     hubs_per_ring      = n_hubs // n_rings
     relays_per_ring    = n_relays // n_rings
     satellites_per_ring= n_satellites // n_rings
 
-    for ring_idx in range(n_rings):
+    for ring_idx, ring_month in enumerate(RING_MONTH_ASSIGNMENTS):
         ring_id = f"ring_{ring_idx:02d}"
         # All members of a ring cluster around a single creation timestamp
-        ring_creation_base = random_created_at((1, 5))  # rings don't appear in month 6
+        ring_creation_base = calendar_month_created_at(2024, ring_month)
 
         # Hubs
         for _ in range(hubs_per_ring):
@@ -390,25 +414,23 @@ def main(seed=42, output_dir="./output", skip_graph=False):
 
     # ── Step 6: Build interaction graph ───────────────────────────────────
     if not skip_graph:
-        print("\nBuilding interaction graph (this may take 2-3 minutes)...")
-        # Use a sample for graph construction — full 50k * 20 contacts each
-        # is ~1M edges which is fine but slow. Adjust sample size if needed.
-        graph_df = df[["profile_id", "is_fraud", "fraud_type",
-                        "unique_contacts", "ring_role" if "ring_role" in df.columns else "fraud_type"]].copy()
-
-        # ring_role may not be in df if no ring profiles — handle gracefully
-        if "ring_role" not in graph_df.columns:
-            graph_df["ring_role"] = None
-
-        G, edges_df, stats_df = build_interaction_graph(graph_df)
+        print("\nBuilding interaction graph (this may take a few minutes)...")
+        # build_interaction_graph needs the full profile columns (age/gender/
+        # city/state/income/created_at for demographic-aware sampling, plus
+        # ring_id/ring_role for topology construction) — pass df as-is rather
+        # than a narrowed column subset.
+        G, edges_df, stats_df, audit_df = build_interaction_graph(df, seed=seed)
 
         edges_path = os.path.join(output_dir, "edges.csv")
         stats_path = os.path.join(output_dir, "graph_stats.csv")
+        audit_path = os.path.join(output_dir, "edges_audit.csv")
         edges_df.to_csv(edges_path, index=False)
         stats_df.to_csv(stats_path, index=False)
+        audit_df.to_csv(audit_path, index=False)
         print(f"Graph: {G.number_of_nodes():,} nodes, {G.number_of_edges():,} edges")
         print(f"Saved: {edges_path}")
         print(f"Saved: {stats_path}")
+        print(f"Saved: {audit_path} (audit only — is_fraud_edge/topology, never a model input)")
     else:
         print("Skipping graph generation (--skip_graph flag set).")
 
